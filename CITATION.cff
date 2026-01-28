@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+title: "15-Minute City Accessibility Analysis using FEATHER"
+message: "If you use this software or data, please cite it as below."
+type: software
+
+authors:
+  - family-names: Rolin
+    given-names: Magnus
+  - family-names: Bønneland
+    given-names: Morten
+  - family-names: Friberg
+    given-names: Teis
+  - family-names: Henriksen
+    given-names: Jonas
+
+version: 0.1.0
+date-released: 2026-01-28
