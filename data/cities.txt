@@ -1,0 +1,15 @@
+Copenhagen
+    "Copenhagen Municipality, Denmark",
+    "Frederiksberg Municipality, Denmark",
+
+Berlin
+    "Berlin, Germany", 
+Oslo
+    "Oslo, Norway"
+Paris
+    "Paris, France"
+
+Budapest
+    "Budapest, Hungary"
+Gdańsk
+    "Gdańsk, Poland"
