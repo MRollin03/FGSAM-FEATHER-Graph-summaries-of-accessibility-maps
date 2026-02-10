@@ -2,15 +2,15 @@ This repository contains a research-oriented project exploring **accessibility a
 
 ## Problem Statement
 
-The **15-minute city** is an urban planning concept introduced by Carlos Moreno in 2016. It describes a city where residents can access all essential daily services—such as work, education, healthcare, shopping, and social activities—within a **15-minute walking distance** from their home.
+The **15-minute city** is an urban planning concept introduced by Carlos Moreno in 2016. It describes a city where residents can access all essential daily services—such as work, education, healthcare, shopping, and social activities—within a **definitive walking distance** from their home.
 
-The concept emphasizes:
+The concept emphasises:
 
 * Improved **accessibility**
 * Reduced **dependence on cars**
 * Increased **social equity**, regardless of mobility or socioeconomic status
 
-In this project, accessibility is defined as the **ability to reach essential services and amenities within a 15-minute threshold**, which serves as a continuous value rather than a strict cutoff.
+In this project, accessibility is defined as the **ability to reach essential services and amenities within a given threshold**, which serves as a continuous value rather than a strict cutoff.
 
 ## Project Goal
 
