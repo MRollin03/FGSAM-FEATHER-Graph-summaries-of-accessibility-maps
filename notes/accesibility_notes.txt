@@ -1,0 +1,28 @@
+Specifications for accessibility amenities
+- Healthcare
+	- NO HOSPITALS
+	- Doctors, clinics, dentist, pharmacy.  
+- Education
+	- Kindergarten for kids below school age.
+	- School (College (gymnasie), in Denmark).
+	- Library
+- Transportation
+	- MAYBE bicycle parking
+	- Bus station
+	- Train_station/Railway_station
+	- 
+- Sustenance
+	- cafe
+	- restaurant
+	- fast_food
+- Shops
+	- shop=convenience, shop=department_store, shop=supermarket
+- Finance
+	- atm, bank
+
+Leisures
+- garden
+- park
+- playground
+- sports_centre / sports_hall
+- swimming_area
