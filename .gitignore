@@ -25,3 +25,4 @@ replay_pid*
 /src/graphs/cache
 /src/graphs/.ipynb_checkpoints
 /src/graphs/data
+/notes/.ipynb_checkpoints
