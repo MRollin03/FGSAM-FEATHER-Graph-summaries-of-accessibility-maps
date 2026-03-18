@@ -5,8 +5,6 @@
 
 
 import pandas as pd
-import pandana as pdna
-from pandana.loaders import osm
 import numpy as np
 import warnings
 import matplotlib.pyplot as plt
@@ -15,6 +13,7 @@ import geopandas as gpd
 import osmnx as ox
 import os
 import timeit
+import pyogrio
 
 ox.settings.use_cache = True
 ox.settings.log_console = True
@@ -38,13 +37,9 @@ filepath_pan = "./data/silkbronx_features.h5"
 if(os.path.exists(filepath_pan)):
     n, e = ox.graph_to_gdfs(G)
     e = e.reset_index()
-    network = pdna.Network.from_hdf5(filepath_pan)
 else:
     n, e = ox.graph_to_gdfs(G)
     e = e.reset_index()
-    network = pdna.Network(n.geometry.x, n.geometry.y, e["u"], e["v"], e[["length"]])
-
-    network.save_hdf5(filepath_pan)
 
 #places = ["silkeborg Municipality, Denmark",]
 
@@ -55,51 +50,78 @@ tags = {
     "amenity": ["clinic", "pharmacy", "school"],
     "shop": ["supermarket", "convenience"]
 }
+
 all_pois = ox.features_from_bbox(bbox, tags=tags).to_crs(n.crs)
 all_pois["geometry"] = all_pois.centroid
-
-# these are Filters for filtering the specified amenities
-# Think of these as the induvidual layers
-categories = {
-    #if you add a filter layer remember to add it in the sub catogory in the for two for-loops down
-    "pois_a": all_pois[all_pois["shop"].isin(["supermarket", "convenience"])],
-    "pois_b": all_pois[all_pois["amenity"].isin(["clinic", "pharmacy"])],
-    "pois_c": all_pois[all_pois["amenity"] == "school"],
     
+reducedpois = pd.DataFrame(all_pois, columns=["geometry","amenity", "education", "shop", "healthcare"])
+reducedpois = reducedpois.droplevel("element")
+reducedpois.to_csv("Features.csv")
+        
+reducededges = pd.DataFrame(e, columns=["u", "v"])
+reducededges.to_csv("Edges.csv", index=False)
+
+reducednode = pd.DataFrame(n, columns=["osmid"])
+reducednode.to_csv("Node.csv", index=False)
+
+
+featherIDtoOSMID = {}
+counter = 0;
+for index, row in reducededges.iterrows() :
     
-    "pois_TURBO": all_pois # THIS MUST BE THE LAST ONE IN THE CATEGORY LIST!
-}
-
-
-# Goes Through the Categories  and creates the POI for the category so that we can aggregate and plot them
-for cat, data in categories.items():
-    if data.empty:
-        continue
+    node1 = row['u']
+    node2 = row['v']
+    
+    if not featherIDtoOSMID.__contains__(node1) : 
+        featherIDtoOSMID.setdefault(node1, counter)
+        counter += 1;
+    
+    if not featherIDtoOSMID.__contains__(node2) : 
+        featherIDtoOSMID.setdefault(node2, counter)
+        counter += 1;
         
-    network.set_pois(
-        category=cat,
-        maxdist=2000,
-        maxitems=1000,
-        x_col=data.geometry.x,
-        y_col=data.geometry.y,
-    )
+    pass
 
-# if its not the Teis mega special TURBO layer (Combined layer) just get the nearest node.
-# else add the nearest node for each category to the combined if its in reach of the specifed value.
-    if cat != "pois_TURBO":
-        nearest = network.nearest_pois(distance=2000, category=cat, num_pois=1)
-        n[cat] = (nearest <= 1000).sum(axis=1)
-    else:
-        turbo_sum = 0
-        for sub_cat in ["pois_a", "pois_b", "pois_c"]:
-            if sub_cat in categories:
-                dist = network.nearest_pois(distance=2000, category=sub_cat, num_pois=1) # Number of nearst point for each category
-                turbo_sum += (dist <= 1000).any(axis=1).astype(int) #add to the node value if its less than specified
-        n["pois_TURBO"] = turbo_sum
+convertedEdges = pd.DataFrame(columns = ['u', 'v']);
+
+for index, row in reducededges.iterrows() :
+    
+    node1 = row['u']
+    node2 = row['v']
+    convertedEdges.loc[index] = [featherIDtoOSMID.get(node1), featherIDtoOSMID.get(node2)]
         
+    pass
+
+convertedPois = pd.DataFrame(columns=[ 'id', 'amenity', 'education', 'shop', 'healthcare'])
+for index, row in reducedpois.iterrows():
+    nearest_node = ox.nearest_nodes(G, row['geometry'].x, row['geometry'].y)
+
+    nodeamenity   = 0 if type(row.get('amenity'))    is str else 0
+    nodeeducation = 0 if type(row.get('education'))  is str else 0
+    nodeshop      = 0 if type(row.get('shop'))       is str else 0
+    nodehealthcare= 0 if type(row.get('healthcare')) is str else 0
+
+    existing = convertedPois.loc[nearest_node] if nearest_node in convertedPois.index else [featherIDtoOSMID.get(nearest_node), 0, 0, 0, 0]
+    convertedPois.loc[nearest_node] = [
+        featherIDtoOSMID.get(nearest_node),
+        max(existing[1], nodeamenity),
+        max(existing[2], nodeeducation),
+        max(existing[3], nodeshop),
+        max(existing[4], nodehealthcare),
+        ]
+    
+# Now fill in every node that had no nearby POI
+for osmid, feather_id in featherIDtoOSMID.items():
+    if osmid not in convertedPois.index:
+        convertedPois.loc[osmid] = [feather_id, 0, 0, 0, 0]
+
+convertedPois = convertedPois.sort_values('id')
+convertedPois = convertedPois.drop("id", axis=1)
+
+convertedPois.to_csv("2ConvertedFeatures.csv", index=False)
+convertedEdges.to_csv("2ConvertedEdges.csv", index=False)
+
 dist = 1000
-
-
 # In[3]:
 
 
