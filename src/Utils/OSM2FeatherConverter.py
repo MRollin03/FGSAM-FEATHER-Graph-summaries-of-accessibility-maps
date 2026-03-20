@@ -33,8 +33,8 @@ def Convertbbox():
     '''
 
     # Call API if file is not already in the data folder
-    filepath = "./data/silkbronx_network.graphml"
-    bbox = 9.48446, 56.15291, 9.62522, 56.20804
+    filepath = "./data/helsingør.graphml"
+    bbox = 12.6281, 56.0055, 12.5395, 56.0506
     if os.path.exists(filepath):
         G = ox.io.load_graphml(filepath)
     else:
@@ -45,7 +45,7 @@ def Convertbbox():
     # Load the graph and edges
     G = ox.project_graph(G)
     
-    filepath_pan = "./data/silkbronx_network.h5"
+    filepath_pan = "./data/helsingør.h5"
 
     if(os.path.exists(filepath_pan)):
         n, e = ox.graph_to_gdfs(G)
