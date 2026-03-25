@@ -5,10 +5,10 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
 # ── Config — edit these ───────────────────────────────────────────────────────
-CSV_FILE   = "./data/helsingør2.csv"
-METHOD     = "pca"       # "pca" or "tsne"
+CSV_FILE   = "./FEATHER/output/København.csv"
+METHOD     = "tsne"       # "pca" or "tsne"
 ID_COL     = "id"        # column with node IDs, or None
-LABEL_COL  = "Helsingør"        # column to colour by, or None
+LABEL_COL  = "KøbenhavnTsne"        # column to colour by, or None
 OUTPUT     = "./images"        # e.g. "plot.png" to save, or None to show inline
 # ─────────────────────────────────────────────────────────────────────────────
 
