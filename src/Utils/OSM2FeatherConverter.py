@@ -15,48 +15,61 @@ import pandana as pdna
 ox.settings.use_cache = True
 ox.settings.log_console = True
 
-def Convert():
+def Convert(args):
     '''
     This function takes in a bbox (a set of coordinates to indicate an area on a map)
     and converts all of its features into csv files that are appropriate for the
     Feather algorithm. ref = https://github.com/benedekrozemberczki/FEATHER
     '''
-
-    # Call API if file is not already in the data folder
-    filepath = "./data/helsingør.graphml"
-    bbox = 12.6281, 56.0055, 12.5395, 56.0506
-    if os.path.exists(filepath):
-        G = ox.io.load_graphml(filepath)
-    else:
-        G = ox.graph.graph_from_bbox(bbox, simplify=True)
-        ox.io.save_graphml(G, filepath)
-
-
-    # Load the graph and edges
-    G = ox.project_graph(G)
     
-    filepath_pan = "./data/helsingør.h5"
-
-    if(os.path.exists(filepath_pan)):
-        n, e = ox.graph_to_gdfs(G)
-        e = e.reset_index()
-        network = pdna.Network.from_hdf5(filepath_pan)
-    else:
-        n, e = ox.graph_to_gdfs(G)
-        e = e.reset_index()
-        network = pdna.Network(n.geometry.x, n.geometry.y, e["u"], e["v"], e[["length"]])
-
-        network.save_hdf5(filepath_pan)
-
-
     # Tags with subtags fetched from the Overpass API once
     tags = {
         "amenity": ["clinic", "pharmacy", "school"],
         "shop": ["supermarket", "convenience"]
     }
+    
+    #ox.settings.overpass_url = "https://overpass.maprva.org/api/"
+    graphml_path = args.title + "/" + args.title + ".graphml"
+    pandana_path = args.title + "/" + args.title + ".h5"
+    
+    if args.title == None:
+        raise ValueError("You need a Title for your project")
+        
+    if not os.path.exists("./" +args.title):
+        os.makedirs("./" + args.title)
+    
+    if not os.path.exists(graphml_path):
+        
+        if args.type == "BBOX":
+            G = ox.graph.graph_from_bbox(args.bbox, simplify=True)
+        if args.type == "PLACE":
+            G = ox.graph.graph_from_place(args.place, simplify=True)
+        ox.io.save_graphml(G, graphml_path)
+    else:
+        G = ox.io.load_graphml(graphml_path)
 
-    all_pois = ox.features_from_bbox(bbox, tags=tags).to_crs(n.crs)
-    all_pois["geometry"] = all_pois.centroid
+    # Load the graph and edges
+    G = ox.project_graph(G)
+
+    if(os.path.exists(pandana_path)):
+        n, e = ox.graph_to_gdfs(G)
+        e = e.reset_index()
+        network = pdna.Network.from_hdf5(pandana_path)
+    else:
+        n, e = ox.graph_to_gdfs(G)
+        e = e.reset_index()
+        network = pdna.Network(n.geometry.x, n.geometry.y, e["u"], e["v"], e[["length"]])
+
+        network.save_hdf5(pandana_path)
+
+    if args.type == "BBOX":
+        
+        all_pois = ox.features_from_bbox(args.bbox, tags=tags).to_crs(n.crs)
+        all_pois["geometry"] = all_pois.centroid
+    
+    if args.type == "PLACE":
+        all_pois = ox.features_from_place(args.place, tags=tags).to_crs(n.crs)
+        all_pois["geometry"] = all_pois.centroid
 
     reducedpois = pd.DataFrame(all_pois, columns=["geometry", "amenity", "education", "shop", "healthcare"])
     reducedpois = reducedpois.droplevel("element")
@@ -97,7 +110,7 @@ def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
         raise ValueError("Input edges are empty")
 
     convertedEdges = ogEdges[["u", "v"]].replace(featherIDtoOSMID)
-    convertedEdges.to_csv("./output/FeatherEdges.csv", index=False)
+    convertedEdges.to_csv("./" + args.title +  "/FeatherEdges.csv", index=False)
 
 
 def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
@@ -151,8 +164,54 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     featurez.index = featurez.index.map(featherIDtoOSMID)
     featurez.sort_index(inplace=True)
     featurez.index.name = None
-    featurez.to_csv("./output/featuresteis.csv", index=False)
+    featurez.to_csv("./" + args.title + "/featuresteis.csv", index=False)
+    return exit(0)
 
 # ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Converts OSM BBOX or PLACES into FEATHER Compatible files"
+    )
+    
+    
+    parser.add_argument(
+        "--title",
+        type = str,
+        required=True,
+        help="Title for the project"
+    )
 
-Convert()
+
+    parser.add_argument(
+        "--type",
+        required=True,
+        choices=["BBOX", "PLACE"],
+        help="Conversion type"
+    )
+
+    parser.add_argument(
+        "--bbox",
+        nargs=4,
+        type=float,
+        metavar=("WEST", "SOUTH", "EAST", "NORD"),
+        help="Bounding box coordinates"
+    )
+
+    parser.add_argument(
+        "--place",
+        type=str,
+        help="Place name (only used if type=PLACE)"
+    )
+    
+
+    args = parser.parse_args()
+
+    if args.type == "BBOX" and not args.bbox:
+        parser.error("--bbox is required when type=BBOX")
+
+    if args.type == "PLACE" and not args.place:
+        parser.error("--place is required when type=PLACE")
+
+    Convert(args)
+    
+

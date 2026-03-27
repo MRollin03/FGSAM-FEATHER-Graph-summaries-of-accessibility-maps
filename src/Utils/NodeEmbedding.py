@@ -1,16 +1,51 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import argparse
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 
 # ── Config — edit these ───────────────────────────────────────────────────────
 CSV_FILE   = "./FEATHER/output/København.csv"
-METHOD     = "tsne"       # "pca" or "tsne"
+METHOD     = "pca"       # "pca" or "tsne"
 ID_COL     = "id"        # column with node IDs, or None
-LABEL_COL  = "KøbenhavnTsne"        # column to colour by, or None
+LABEL_COL  = "None"   # column to colour by, or None
 OUTPUT     = "./images"        # e.g. "plot.png" to save, or None to show inline
 # ─────────────────────────────────────────────────────────────────────────────
+# ─  Argument Parsing ─────────────────────────────────────────────────────────
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Makes pca Diagrams from Feather Output CSV's"
+    )
+    
+    
+    parser.add_argument(
+        "--title",
+        type = str,
+        required=True,
+        help="Title for the project"
+    )
+    
+    parser.add_argument(
+        "--input",
+        type = str,
+        required=True,
+        help="input directory of feather csv"
+    )
+    
+    parser.add_argument(
+        "--output",
+        type = str,
+        required=True,
+        help="Output directory for the image"
+    )
+    
+args = parser.parse_args()
+
+LABEL_COL = args.title
+CSV_FILE = args.input
+OUTPUT = args.output
+
 
 # ── Load ──────────────────────────────────────────────────────────────────────
 df = pd.read_csv(CSV_FILE)
