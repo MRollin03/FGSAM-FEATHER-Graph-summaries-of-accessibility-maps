@@ -29,8 +29,8 @@ def Convert(args):
     }
     
     #ox.settings.overpass_url = "https://overpass.maprva.org/api/"
-    graphml_path = args.title + "/" + args.title + ".graphml"
-    pandana_path = args.title + "/" + args.title + ".h5"
+    graphml_path = args.output + "/" + args.title + "/" + args.title + ".graphml"
+    pandana_path = args.output + "/" + args.title + "/" + args.title + ".h5"
     
     if args.title == None:
         raise ValueError("You need a Title for your project")
@@ -110,7 +110,7 @@ def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
         raise ValueError("Input edges are empty")
 
     convertedEdges = ogEdges[["u", "v"]].replace(featherIDtoOSMID)
-    convertedEdges.to_csv("./" + args.title +  "/FeatherEdges.csv", index=False)
+    convertedEdges.to_csv("./" + args.output + "/" + args.title +  "/FeatherEdges.csv", index=False)
 
 
 def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
@@ -164,7 +164,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     featurez.index = featurez.index.map(featherIDtoOSMID)
     featurez.sort_index(inplace=True)
     featurez.index.name = None
-    featurez.to_csv("./" + args.title + "/featuresteis.csv", index=False)
+    featurez.to_csv("./"+ args.output + "/" + args.title + "/featuresteis.csv", index=False)
     return exit(0)
 
 # ---------------------------------------------------------------------------
@@ -202,6 +202,13 @@ if __name__ == "__main__":
         type=str,
         help="Place name (only used if type=PLACE)"
     )
+    
+    parser.add_argument(
+        "--output", 
+        required=True,
+        type=str,
+        help="output direectory for the project folder"
+        )
     
 
     args = parser.parse_args()
