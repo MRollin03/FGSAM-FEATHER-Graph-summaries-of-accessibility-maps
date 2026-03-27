@@ -23,9 +23,45 @@ def Convert(args):
     '''
     
     # Tags with subtags fetched from the Overpass API once
+    # Accessibility amenity tags for Overpass API queries
     tags = {
-        "amenity": ["clinic", "pharmacy", "school"],
-        "shop": ["supermarket", "convenience"]
+        "leisure": [
+            # Outdoor Activities
+            "park", "playground", "bathing_place", "garden", "pitch",
+            "stadium", "swimming_area", "track",
+            # Physical Exercise
+            "fitness_centre", "fitness_station", "sports_centre", "swimming_pool",
+        ],
+        "amenity": [
+            # Learning
+            "college", "school", "library", "kindergarten", "university", "training",
+            # Eating
+            "pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten",
+            # Cultural Activities
+            "cinema", "community_centre", "theatre",
+            # Services
+            "fire_station", "police", "post_office", "post_box", "townhall", "toilets",
+            # Healthcare
+            "clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary",
+            # Financial
+            "atm", "bank", "payment_terminal", "payment_centre",
+        ],
+        "shop": [
+            # Supplies
+            "department_store", "general", "mall", "supermarket", "convenience",
+            "bakery", "butcher", "greengrocer", "books", "stationery", "clothes",
+            "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware",
+        ],
+        "public_transport": [
+            # Moving
+            "platform", "station", "stop_position",
+        ],
+        "tourism": [
+            # Cultural Activities
+            "aquarium", "gallery", "museum", "zoo",
+            # Outdoor Activities
+            "picnic_site",
+        ],
     }
     
     #ox.settings.overpass_url = "https://overpass.maprva.org/api/"
@@ -122,9 +158,41 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     '''
 
     categories = {
-        "shop":     all_pois[all_pois["shop"].isin(["supermarket", "convenience"])],
-        "health":    all_pois[all_pois["amenity"].isin(["pharmacy"])],
-        "education": all_pois[all_pois["amenity"] == "school"],
+        # --- OUTDOOR ACTIVITIES ---
+        "outdoor_activities":   pd.concat([
+                                    all_pois[all_pois["leisure"].isin(["park", "playground", "bathing_place", "garden", "pitch", "stadium", "swimming_area", "track"])],
+                                    all_pois[all_pois["tourism"] == "picnic_site"]
+                                ]).drop_duplicates(),
+
+        # --- LEARNING ---
+        "learning":             all_pois[all_pois["amenity"].isin(["college", "school", "library", "kindergarten", "university", "training"])],
+
+        # --- SUPPLIES ---
+        "supplies":             all_pois[all_pois["shop"].isin(["department_store", "general", "mall", "supermarket", "convenience", "bakery", "butcher", "greengrocer", "books", "stationery", "clothes", "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware"])],
+
+        # --- EATING ---
+        "eating":               all_pois[all_pois["amenity"].isin(["pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"])],
+
+        # --- MOVING ---
+        "moving":               all_pois[all_pois["public_transport"].isin(["platform", "station", "stop_position"])],
+
+        # --- CULTURAL ACTIVITIES ---
+        "cultural_activities":  pd.concat([
+                                    all_pois[all_pois["amenity"].isin(["cinema", "community_centre", "theatre"])],
+                                    all_pois[all_pois["tourism"].isin(["aquarium", "gallery", "museum", "zoo"])]
+                                ]).drop_duplicates(),
+
+        # --- PHYSICAL EXERCISE ---
+        "physical_exercise":    all_pois[all_pois["leisure"].isin(["fitness_centre", "fitness_station", "sports_centre", "swimming_pool"])],
+
+        # --- SERVICES ---
+        "services":             all_pois[all_pois["amenity"].isin(["fire_station", "police", "post_office", "post_box", "townhall", "toilets"])],
+
+        # --- HEALTHCARE ---
+        "healthcare":           all_pois[all_pois["amenity"].isin(["clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"])],
+
+        # --- FINANCIAL ---
+        "financial":            all_pois[all_pois["amenity"].isin(["atm", "bank", "payment_terminal", "payment_centre"])],
     }
 
     distance = 2000   # max search distance (metres)
