@@ -5,7 +5,7 @@ Created on Thu Mar 19 08:43:53 2026
 
 @author: aras
 """
-
+import argparse
 import pandas as pd
 from pathlib import Path
 import osmnx as ox
@@ -15,10 +15,6 @@ import pandana as pdna
 ox.settings.use_cache = True
 ox.settings.log_console = True
 
-
-
-
-
 def Convert():
     '''
     This function takes in a bbox (a set of coordinates to indicate an area on a map)
@@ -26,69 +22,67 @@ def Convert():
     Feather algorithm. ref = https://github.com/benedekrozemberczki/FEATHER
     '''
 
-    # --- Configuration ---
-    Path("./output").mkdir(exist_ok=True) # Output directory 
-    filepath = "./data/København.graphml" # Graph File
-    filepath_pan = "./data/København.h5"  # Featues Files
-    
-    ConvertType = "PLACE"                           # Either "BBOX" or "PLACE"
-    bbox = 12.6281, 56.0055, 12.5395, 56.0506       # Used if ConverType is "BBOx"
-    placenames = ["Copenhagen Municipality, Denmark",
-                  "Frederiksberg Municipality, Denmark",
-                  "Tårnby Municipality, Denmark",
-                  "Dragør Municipality, Denmark",
-                  "Rødovre Municipality, Denmark",
-                  "Hvidovre Municipality, Denmark",
-                  "Gladsaxe Municipality, Denmark",
-                  "Gentofte Municipality, Denmark"
-                  ]   # Used if ConvertType is "PLACE"
-
-    tags = {
-        "amenity": ["pharmacy", "school"],
-        "shop": ["supermarket", "convenience"]
-    }
-
-    # --- Load or fetch graph ---
+    # Call API if file is not already in the data folder
+    filepath = "./data/helsingør.graphml"
+    bbox = 12.6281, 56.0055, 12.5395, 56.0506
     if os.path.exists(filepath):
         G = ox.io.load_graphml(filepath)
     else:
-        if ConvertType == "BBOX":
-            G = ox.graph.graph_from_bbox(bbox, simplify=True)
-        else:
-            G = ox.graph.graph_from_place(placenames, simplify=True)
+        G = ox.graph.graph_from_bbox(bbox, simplify=True)
         ox.io.save_graphml(G, filepath)
 
+
+    # Load the graph and edges
     G = ox.project_graph(G)
+    
+    filepath_pan = "./data/helsingør.h5"
 
-    # --- Load or build pandana network ---
-    n, e = ox.graph_to_gdfs(G)
-    e = e.reset_index()
-
-    if os.path.exists(filepath_pan):
+    if(os.path.exists(filepath_pan)):
+        n, e = ox.graph_to_gdfs(G)
+        e = e.reset_index()
         network = pdna.Network.from_hdf5(filepath_pan)
     else:
-        network = pdna.Network(
-            n.geometry.x, n.geometry.y,
-            e["u"], e["v"], e[["length"]]
-        )
+        n, e = ox.graph_to_gdfs(G)
+        e = e.reset_index()
+        network = pdna.Network(n.geometry.x, n.geometry.y, e["u"], e["v"], e[["length"]])
+
         network.save_hdf5(filepath_pan)
 
-    # --- Fetch POIs once and pass them around ---
-    if ConvertType == "BBOX":
-        all_pois = ox.features_from_bbox(bbox, tags=tags).to_crs(n.crs)
-    else:
-        all_pois = ox.features_from_place(placenames, tags=tags).to_crs(n.crs)
+
+    # Tags with subtags fetched from the Overpass API once
+    tags = {
+        "amenity": ["clinic", "pharmacy", "school"],
+        "shop": ["supermarket", "convenience"]
+    }
+
+    all_pois = ox.features_from_bbox(bbox, tags=tags).to_crs(n.crs)
     all_pois["geometry"] = all_pois.centroid
 
-    # --- Build Feather ID mapping (vectorized) ---
+    reducedpois = pd.DataFrame(all_pois, columns=["geometry", "amenity", "education", "shop", "healthcare"])
+    reducedpois = reducedpois.droplevel("element")
     reducededges = pd.DataFrame(e, columns=["u", "v"])
-    unique_nodes = pd.unique(reducededges[["u", "v"]].values.ravel())
-    featherIDtoOSMID = {osm_id: i for i, osm_id in enumerate(unique_nodes)}
 
-    # --- Write outputs ---
+    # Takes all nodes connected by edges and assigns an integer ID from 0 to (n-1)
+    featherIDtoOSMID = {}
+    counter = 0
+    for index, row in reducededges.iterrows():
+        node1 = row['u']
+        node2 = row['v']
+
+        if node1 not in featherIDtoOSMID:
+            featherIDtoOSMID[node1] = counter
+            counter += 1
+
+        if node2 not in featherIDtoOSMID:
+            featherIDtoOSMID[node2] = counter
+            counter += 1
+
+   
+
+    # Converts the old edges dataframe into a dataframe with the new node IDs
     OsmEdgesToFeather(reducededges, featherIDtoOSMID)
+    
     ComputeFeatures(network, n, featherIDtoOSMID, all_pois)
-
 
 def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
     '''
@@ -115,7 +109,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     '''
 
     categories = {
-        "shops":     all_pois[all_pois["shop"].isin(["supermarket", "convenience"])],
+        "shop":     all_pois[all_pois["shop"].isin(["supermarket", "convenience"])],
         "health":    all_pois[all_pois["amenity"].isin(["pharmacy"])],
         "education": all_pois[all_pois["amenity"] == "school"],
     }
@@ -160,4 +154,5 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     featurez.to_csv("./output/featuresteis.csv", index=False)
 
 # ---------------------------------------------------------------------------
-Convert();
+
+Convert()
