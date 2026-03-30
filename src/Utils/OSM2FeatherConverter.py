@@ -8,6 +8,7 @@ Created on Thu Mar 19 08:43:53 2026
 import argparse
 import pandas as pd
 from pathlib import Path
+import matplotlib.pyplot as plt
 import osmnx as ox
 import os
 import pandana as pdna
@@ -131,7 +132,37 @@ def Convert(args):
     # Converts the old edges dataframe into a dataframe with the new node IDs
     OsmEdgesToFeather(reducededges, featherIDtoOSMID)
     
-    ComputeFeatures(network, n, featherIDtoOSMID, all_pois)
+    nearest_pois = ComputeFeatures(network, n, featherIDtoOSMID, all_pois)
+    
+    fig, ax = ox.plot.plot_graph(
+        G,
+        node_size=0,
+        edge_color="#afdffe",
+        edge_linewidth=0.6,
+        bgcolor="#1a1a1a",
+        show=False,
+        close=False,
+        figsize=(36,34)
+    )
+
+    vmax = nearest_pois["pois"].max()
+    nearest_pois.plot(
+        ax=ax,
+        column="pois",
+        cmap="plasma",
+        markersize=3.5,
+        alpha=0.8,
+        legend=True,
+        legend_kwds={
+            "shrink": 0.5,
+            "label": f"Number of pois ≤ {vmax} m",
+            "orientation": "vertical"
+        },
+        vmin=0,
+        vmax=vmax
+    )
+    plt.savefig(args.output + "/" + args.title + "/" + "all_pois")
+    exit(0)
 
 def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
     '''
@@ -196,7 +227,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     }
 
     distance = 2000   # max search distance (metres)
-    dist = 500        # threshold for counting a POI as "accessible"
+    #dist = 500        # threshold for counting a POI as "accessible"
     n["pois"] = 0
 
     frames = []
@@ -221,19 +252,20 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
         nearest_pois.columns = [cat]
 
         # Count nodes that have this category's nearest POI within threshold
-        n["pois"] += (nearest_pois[cat] <= dist).astype(int)
+        n[cat] = nearest_pois[cat]
+        n["pois"] += nearest_pois[cat]
 
         frames.append(nearest_pois)
 
     if not frames:
         raise RuntimeError("No POI categories had any data — feature CSV not written.")
-
     featurez = pd.concat(frames, axis=1, sort=False)
     featurez.index = featurez.index.map(featherIDtoOSMID)
     featurez.sort_index(inplace=True)
     featurez.index.name = None
     featurez.to_csv("./"+ args.output + "/" + args.title + "/featuresteis.csv", index=False)
-    return exit(0)
+    n["pois"] = n["pois"].truediv(len(frames))
+    return n
 
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
