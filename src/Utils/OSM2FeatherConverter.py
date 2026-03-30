@@ -161,8 +161,9 @@ def Convert(args):
         vmin=0,
         vmax=vmax
     )
+    
     plt.savefig(args.output + "/" + args.title + "/" + "all_pois")
-    exit(0)
+    return exit(0)
 
 def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
     '''
@@ -178,6 +179,7 @@ def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
 
     convertedEdges = ogEdges[["u", "v"]].replace(featherIDtoOSMID)
     convertedEdges.to_csv("./" + args.output + "/" + args.title +  "/FeatherEdges.csv", index=False)
+
 
 
 def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):

@@ -28,3 +28,5 @@ def main(args):
 
 if __name__ == "__main__":
     args = parameter_parser()
+    tab_printer(args)
+    main(args)
