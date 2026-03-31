@@ -64,17 +64,13 @@ def Convert(args):
             "picnic_site",
         ],
     }
-    
     #ox.settings.overpass_url = "https://overpass.maprva.org/api/"
     graphml_path = args.output + "/" + args.title + "/" + args.title + ".graphml"
     pandana_path = args.output + "/" + args.title + "/" + args.title + ".h5"
     
     if args.title == None:
         raise ValueError("You need a Title for your project")
-        
-    if not os.path.exists("./" +args.title):
-        os.makedirs("./" + args.title)
-    
+
     if not os.path.exists(graphml_path):
         
         if args.type == "BBOX":
@@ -101,11 +97,12 @@ def Convert(args):
 
     if args.type == "BBOX":
         
-        all_pois = ox.features_from_bbox(args.bbox, tags=tags).to_crs(n.crs)
+        all_pois = ox.features_from_bbox(args.bbox, tags).to_crs(n.crs)
         all_pois["geometry"] = all_pois.centroid
     
     if args.type == "PLACE":
-        all_pois = ox.features_from_place(args.place, tags=tags).to_crs(n.crs)
+        
+        all_pois = ox.features_from_place(args.place, tags).to_crs(n.crs)
         all_pois["geometry"] = all_pois.centroid
 
     reducedpois = pd.DataFrame(all_pois, columns=["geometry", "amenity", "education", "shop", "healthcare"])
@@ -249,11 +246,13 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
         nearest_pois = network.nearest_pois(
             distance=distance,
             category=cat,
-            num_pois=1,
+            num_pois=20,
         )
-        nearest_pois.columns = [cat]
+        nearest_pois[cat] = nearest_pois.sum(axis=1)
+        nearest_pois = nearest_pois.iloc[:,-1:].truediv(20)
+        #nearest_pois.columns = [cat]
 
-        # Count nodes that have this category's nearest POI within threshold
+        # Count nodes that have this category's nearest POI within threshold(deleted threshold, we ball)
         n[cat] = nearest_pois[cat]
         n["pois"] += nearest_pois[cat]
 
