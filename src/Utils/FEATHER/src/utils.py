@@ -59,7 +59,7 @@ def save_embedding(X, args):
     n_features = features.columns.size
     types = ["real","img"]
     embedding = np.concatenate([np.arange(X.shape[0]).reshape(-1, 1), X], axis=1)
-    columns = ["id"] + [f"{features.columns[(x // args.eval_points) % n_features]}_{types[(x // n_features) % 2]}_{x//(n_features * 2)}" for x in range(X.shape[1])]   
+    columns = ["id"] + [f"{features.columns[(x // args.eval_points) % n_features]}_{types[(x // (n_features * args.eval_points)) % 2]}_{x//(n_features * args.eval_points * 2)}" for x in range(X.shape[1])]   
     embedding = pd.DataFrame(embedding, columns=columns)
     embedding.to_csv(args.output, index=None)
     
