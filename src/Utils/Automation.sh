@@ -1,14 +1,14 @@
 #!/bin/bash
 
-projectName="Odense"
+projectName="Gilleleje"
 baseDir="projects"
-MODE=PLACE # Select either [PLACE, BBOX]
+MODE=BBOX # Select either [PLACE, BBOX]
 
 # Coordinates or Location
-west=-2.2865
-south=57.0486
-east=-2.0428
-north=57.2185
+west=12.27259
+south=56.10713
+east=12.34640
+north=56.13288
 
 # Remember to replace the spaces with underscores ( _ )
 location="Odense_Municipality"
@@ -23,7 +23,7 @@ else
 fi
 
 # Fortsæt kun hvis de næste skridt lykkes
-python FEATHER/src/main.py --graph-input "$baseDir""/""$projectName""/FeatherEdges.csv" --feature-input "./""$baseDir""/""$projectName""/featuresteis.csv" --output "./""$baseDir""/""$projectName""/FeatherResult.csv" &&
+python FEATHER/src/main.py --graph-input "$baseDir""/""$projectName""/FeatherEdges.csv" --feature-input "./""$baseDir""/""$projectName""/featuresteis.csv" --output "./""$baseDir""/""$projectName""/FeatherResult.csv" --eval-points 5 &&
 
 python NodeEmbedding.py --title "$projectName" --input "$baseDir""/""$projectName""/FeatherResult.csv" --output "./""$baseDir""/""$projectName"
 

@@ -8,6 +8,7 @@ Created on Thu Mar 19 08:43:53 2026
 import argparse
 import pandas as pd
 from pathlib import Path
+import matplotlib.pyplot as plt
 import osmnx as ox
 import os
 import pandana as pdna
@@ -23,21 +24,53 @@ def Convert(args):
     '''
     
     # Tags with subtags fetched from the Overpass API once
+    # Accessibility amenity tags for Overpass API queries
     tags = {
-        "amenity": ["clinic", "pharmacy", "school"],
-        "shop": ["supermarket", "convenience"]
+        "leisure": [
+            # Outdoor Activities
+            "park", "playground", "bathing_place", "garden", "pitch",
+            "stadium", "swimming_area", "track",
+            # Physical Exercise
+            "fitness_centre", "fitness_station", "sports_centre", "swimming_pool",
+        ],
+        "amenity": [
+            # Learning
+            "college", "school", "library", "kindergarten", "university", "training",
+            # Eating
+            "pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten",
+            # Cultural Activities
+            "cinema", "community_centre", "theatre",
+            # Services
+            "fire_station", "police", "post_office", "post_box", "townhall", "toilets",
+            # Healthcare
+            "clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary",
+            # Financial
+            "atm", "bank", "payment_terminal", "payment_centre",
+        ],
+        "shop": [
+            # Supplies
+            "department_store", "general", "mall", "supermarket", "convenience",
+            "bakery", "butcher", "greengrocer", "books", "stationery", "clothes",
+            "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware",
+        ],
+        "public_transport": [
+            # Moving
+            "platform", "station", "stop_position",
+        ],
+        "tourism": [
+            # Cultural Activities
+            "aquarium", "gallery", "museum", "zoo",
+            # Outdoor Activities
+            "picnic_site",
+        ],
     }
-    
     #ox.settings.overpass_url = "https://overpass.maprva.org/api/"
     graphml_path = args.output + "/" + args.title + "/" + args.title + ".graphml"
     pandana_path = args.output + "/" + args.title + "/" + args.title + ".h5"
     
     if args.title == None:
         raise ValueError("You need a Title for your project")
-        
-    if not os.path.exists("./" +args.title):
-        os.makedirs("./" + args.title)
-    
+
     if not os.path.exists(graphml_path):
         
         if args.type == "BBOX":
@@ -64,11 +97,12 @@ def Convert(args):
 
     if args.type == "BBOX":
         
-        all_pois = ox.features_from_bbox(args.bbox, tags=tags).to_crs(n.crs)
+        all_pois = ox.features_from_bbox(args.bbox, tags).to_crs(n.crs)
         all_pois["geometry"] = all_pois.centroid
     
     if args.type == "PLACE":
-        all_pois = ox.features_from_place(args.place, tags=tags).to_crs(n.crs)
+        
+        all_pois = ox.features_from_place(args.place, tags).to_crs(n.crs)
         all_pois["geometry"] = all_pois.centroid
 
     reducedpois = pd.DataFrame(all_pois, columns=["geometry", "amenity", "education", "shop", "healthcare"])
@@ -95,7 +129,38 @@ def Convert(args):
     # Converts the old edges dataframe into a dataframe with the new node IDs
     OsmEdgesToFeather(reducededges, featherIDtoOSMID)
     
-    ComputeFeatures(network, n, featherIDtoOSMID, all_pois)
+    nearest_pois = ComputeFeatures(network, n, featherIDtoOSMID, all_pois)
+    
+    fig, ax = ox.plot.plot_graph(
+        G,
+        node_size=0,
+        edge_color="#afdffe",
+        edge_linewidth=0.6,
+        bgcolor="#1a1a1a",
+        show=False,
+        close=False,
+        figsize=(36,34)
+    )
+
+    vmax = nearest_pois["pois"].max()
+    nearest_pois.plot(
+        ax=ax,
+        column="pois",
+        cmap="plasma",
+        markersize=3.5,
+        alpha=0.8,
+        legend=True,
+        legend_kwds={
+            "shrink": 0.5,
+            "label": f"Number of pois ≤ {vmax} m",
+            "orientation": "vertical"
+        },
+        vmin=0,
+        vmax=vmax
+    )
+    
+    plt.savefig(args.output + "/" + args.title + "/" + "all_pois")
+    return exit(0)
 
 def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
     '''
@@ -113,6 +178,7 @@ def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
     convertedEdges.to_csv("./" + args.output + "/" + args.title +  "/FeatherEdges.csv", index=False)
 
 
+
 def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     '''
     For each POI category, computes the nearest POI distance for every network
@@ -122,13 +188,45 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     '''
 
     categories = {
-        "shop":     all_pois[all_pois["shop"].isin(["supermarket", "convenience"])],
-        "health":    all_pois[all_pois["amenity"].isin(["pharmacy"])],
-        "education": all_pois[all_pois["amenity"] == "school"],
+        # --- OUTDOOR ACTIVITIES ---
+        "outdoor_activities":   pd.concat([
+                                    all_pois[all_pois["leisure"].isin(["park", "playground", "bathing_place", "garden", "pitch", "stadium", "swimming_area", "track"])],
+                                    all_pois[all_pois["tourism"] == "picnic_site"]
+                                ]).drop_duplicates(),
+
+        # --- LEARNING ---
+        "learning":             all_pois[all_pois["amenity"].isin(["college", "school", "library", "kindergarten", "university", "training"])],
+
+        # --- SUPPLIES ---
+        "supplies":             all_pois[all_pois["shop"].isin(["department_store", "general", "mall", "supermarket", "convenience", "bakery", "butcher", "greengrocer", "books", "stationery", "clothes", "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware"])],
+
+        # --- EATING ---
+        "eating":               all_pois[all_pois["amenity"].isin(["pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"])],
+
+        # --- MOVING ---
+        "moving":               all_pois[all_pois["public_transport"].isin(["platform", "station", "stop_position"])],
+
+        # --- CULTURAL ACTIVITIES ---
+        "cultural_activities":  pd.concat([
+                                    all_pois[all_pois["amenity"].isin(["cinema", "community_centre", "theatre"])],
+                                    all_pois[all_pois["tourism"].isin(["aquarium", "gallery", "museum", "zoo"])]
+                                ]).drop_duplicates(),
+
+        # --- PHYSICAL EXERCISE ---
+        "physical_exercise":    all_pois[all_pois["leisure"].isin(["fitness_centre", "fitness_station", "sports_centre", "swimming_pool"])],
+
+        # --- SERVICES ---
+        "services":             all_pois[all_pois["amenity"].isin(["fire_station", "police", "post_office", "post_box", "townhall", "toilets"])],
+
+        # --- HEALTHCARE ---
+        "healthcare":           all_pois[all_pois["amenity"].isin(["clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"])],
+
+        # --- FINANCIAL ---
+        "financial":            all_pois[all_pois["amenity"].isin(["atm", "bank", "payment_terminal", "payment_centre"])],
     }
 
     distance = 2000   # max search distance (metres)
-    dist = 500        # threshold for counting a POI as "accessible"
+    #dist = 500        # threshold for counting a POI as "accessible"
     n["pois"] = 0
 
     frames = []
@@ -148,24 +246,27 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
         nearest_pois = network.nearest_pois(
             distance=distance,
             category=cat,
-            num_pois=1,
+            num_pois=20,
         )
-        nearest_pois.columns = [cat]
+        nearest_pois[cat] = nearest_pois.sum(axis=1)
+        nearest_pois = nearest_pois.iloc[:,-1:].truediv(20)
+        #nearest_pois.columns = [cat]
 
-        # Count nodes that have this category's nearest POI within threshold
-        n["pois"] += (nearest_pois[cat] <= dist).astype(int)
+        # Count nodes that have this category's nearest POI within threshold(deleted threshold, we ball)
+        n[cat] = nearest_pois[cat]
+        n["pois"] += nearest_pois[cat]
 
         frames.append(nearest_pois)
 
     if not frames:
         raise RuntimeError("No POI categories had any data — feature CSV not written.")
-
     featurez = pd.concat(frames, axis=1, sort=False)
     featurez.index = featurez.index.map(featherIDtoOSMID)
     featurez.sort_index(inplace=True)
     featurez.index.name = None
     featurez.to_csv("./"+ args.output + "/" + args.title + "/featuresteis.csv", index=False)
-    return exit(0)
+    n["pois"] = n["pois"].truediv(len(frames))
+    return n
 
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
