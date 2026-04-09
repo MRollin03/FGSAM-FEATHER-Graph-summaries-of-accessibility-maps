@@ -142,7 +142,8 @@ def Convert(args):
             figsize=(36,34)
         )
     
-        vmax = nearest_pois["pois"].max()
+        vmin = nearest_pois["pois"].min()
+        vmax=args.distance
         nearest_pois.plot(
             ax=ax,
             column="pois",
@@ -155,8 +156,8 @@ def Convert(args):
                 "label": f"Number of pois ≤ {vmax} m",
                 "orientation": "vertical"
             },
-            vmin=0,
-            vmax=2000
+            vmin=vmin,
+            vmax=args.distance
         )
         
         plt.savefig(args.output + "/" + args.title + "/" + "all_pois")
@@ -171,8 +172,8 @@ def Convert(args):
             close=False,
             figsize=(36,34)
         )
-    
-        vmax = nearest_pois[args.solo].max()
+        vmin = nearest_pois[args.solo].min()
+        vmax=args.distance
         nearest_pois.plot(
             ax=ax,
             column=args.solo,
@@ -185,8 +186,8 @@ def Convert(args):
                 "label": f"Number of pois ≤ {vmax} m",
                 "orientation": "vertical"
             },
-            vmin=0,
-            vmax=2000
+            vmin=vmin,
+            vmax=args.distance
         )
         
         plt.savefig(args.output + "/" + args.title + "/" + args.solo + "_pois")
@@ -255,7 +256,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
         "financial":            all_pois[all_pois["amenity"].isin(["atm", "bank", "payment_terminal", "payment_centre"])],
     }
 
-    distance = 3500   # max search distance (metres)
+    distance = args.distance   # max search distance (metres)
     #dist = 500        # threshold for counting a POI as "accessible"
     n["pois"] = 0
 
@@ -364,7 +365,12 @@ if __name__ == "__main__":
         type=str,
         help="if you only want one tag cat, name it here(if none, all 10 categories will be saved to feature csv)"
     )
-    
+    parser.add_argument(
+        "--distance",
+        type=int,
+        default=2000,
+        help="the distance to look for out 20 pois per cat, this is alos used as vmax for the heatmap graph"
+    )
     parser.add_argument(
         "--csvdebug",
         type=str,
