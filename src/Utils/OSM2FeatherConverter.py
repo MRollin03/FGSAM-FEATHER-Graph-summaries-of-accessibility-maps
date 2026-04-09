@@ -130,36 +130,66 @@ def Convert(args):
     OsmEdgesToFeather(reducededges, featherIDtoOSMID)
     
     nearest_pois = ComputeFeatures(network, n, featherIDtoOSMID, all_pois)
+    if args.solo == None:
+        fig, ax = ox.plot.plot_graph(
+            G,
+            node_size=0,
+            edge_color="#afdffe",
+            edge_linewidth=0.6,
+            bgcolor="#1a1a1a",
+            show=False,
+            close=False,
+            figsize=(36,34)
+        )
     
-    fig, ax = ox.plot.plot_graph(
-        G,
-        node_size=0,
-        edge_color="#afdffe",
-        edge_linewidth=0.6,
-        bgcolor="#1a1a1a",
-        show=False,
-        close=False,
-        figsize=(36,34)
-    )
-
-    vmax = nearest_pois["pois"].max()
-    nearest_pois.plot(
-        ax=ax,
-        column="pois",
-        cmap="plasma",
-        markersize=3.5,
-        alpha=0.8,
-        legend=True,
-        legend_kwds={
-            "shrink": 0.5,
-            "label": f"Number of pois ≤ {vmax} m",
-            "orientation": "vertical"
-        },
-        vmin=0,
-        vmax=vmax
-    )
+        vmax = nearest_pois["pois"].max()
+        nearest_pois.plot(
+            ax=ax,
+            column="pois",
+            cmap="plasma",
+            markersize=3.5,
+            alpha=0.8,
+            legend=True,
+            legend_kwds={
+                "shrink": 0.5,
+                "label": f"Number of pois ≤ {vmax} m",
+                "orientation": "vertical"
+            },
+            vmin=0,
+            vmax=2000
+        )
+        
+        plt.savefig(args.output + "/" + args.title + "/" + "all_pois")
+    else:
+        fig, ax = ox.plot.plot_graph(
+            G,
+            node_size=0,
+            edge_color="#afdffe",
+            edge_linewidth=0.6,
+            bgcolor="#1a1a1a",
+            show=False,
+            close=False,
+            figsize=(36,34)
+        )
     
-    plt.savefig(args.output + "/" + args.title + "/" + "all_pois")
+        vmax = nearest_pois[args.solo].max()
+        nearest_pois.plot(
+            ax=ax,
+            column=args.solo,
+            cmap="plasma",
+            markersize=3.5,
+            alpha=0.8,
+            legend=True,
+            legend_kwds={
+                "shrink": 0.5,
+                "label": f"Number of pois ≤ {vmax} m",
+                "orientation": "vertical"
+            },
+            vmin=0,
+            vmax=2000
+        )
+        
+        plt.savefig(args.output + "/" + args.title + "/" + args.solo + "_pois")
     return exit(0)
 
 def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
@@ -225,39 +255,64 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
         "financial":            all_pois[all_pois["amenity"].isin(["atm", "bank", "payment_terminal", "payment_centre"])],
     }
 
-    distance = 2000   # max search distance (metres)
+    distance = 3500   # max search distance (metres)
     #dist = 500        # threshold for counting a POI as "accessible"
     n["pois"] = 0
 
     frames = []
-
-    for cat, data in categories.items():
-        if data.empty:
-            continue
-
-        network.set_pois(
-            category=cat,
-            maxdist=distance,
-            maxitems=1000,
-            x_col=data.geometry.x,
-            y_col=data.geometry.y,
-        )
-
-        nearest_pois = network.nearest_pois(
-            distance=distance,
-            category=cat,
-            num_pois=20,
-        )
-        nearest_pois[cat] = nearest_pois.sum(axis=1)
-        nearest_pois = nearest_pois.iloc[:,-1:].truediv(20)
-        #nearest_pois.columns = [cat]
-
-        # Count nodes that have this category's nearest POI within threshold(deleted threshold, we ball)
-        n[cat] = nearest_pois[cat]
-        n["pois"] += nearest_pois[cat]
-
-        frames.append(nearest_pois)
-
+    if args.solo == None:
+        for cat, data in categories.items():
+            if data.empty:
+                continue
+    
+            network.set_pois(
+                category=cat,
+                maxdist=distance,
+                maxitems=1000,
+                x_col=data.geometry.x,
+                y_col=data.geometry.y,
+            )
+    
+            nearest_pois = network.nearest_pois(
+                distance=distance,
+                category=cat,
+                num_pois=20,
+            )
+            nearest_pois[cat] = nearest_pois.sum(axis=1)
+            nearest_pois = nearest_pois.iloc[:,-1:].truediv(20)
+            #nearest_pois.columns = [cat]
+    
+            # Count nodes that have this category's nearest POI within threshold(deleted threshold, we ball)
+            if cat == args.csvdebug: #(this is to insert zero rows, to examine feather output)
+                nearest_pois[:] = 0
+                n[cat] = nearest_pois[cat]
+            else:
+                n[cat] = nearest_pois[cat]
+                n["pois"] += nearest_pois[cat]
+            
+            frames.append(nearest_pois)
+    else:
+        for cat, data in categories.items():
+            if data.empty:
+                continue
+            if cat == args.solo:
+                network.set_pois(
+                    category=args.solo,
+                    maxdist=distance,
+                    maxitems=1000,
+                    x_col=data.geometry.x,
+                    y_col=data.geometry.y,
+                )
+        
+                nearest_pois = network.nearest_pois(
+                    distance=distance,
+                    category=args.solo,
+                    num_pois=20,
+                )
+                nearest_pois[args.solo] = nearest_pois.sum(axis=1)
+                nearest_pois = nearest_pois.iloc[:,-1:].truediv(20)
+                n[args.solo] = nearest_pois[args.solo]
+                frames.append(nearest_pois)
     if not frames:
         raise RuntimeError("No POI categories had any data — feature CSV not written.")
     featurez = pd.concat(frames, axis=1, sort=False)
@@ -302,6 +357,18 @@ if __name__ == "__main__":
         "--place",
         type=str,
         help="Place name (only used if type=PLACE)"
+    )
+    
+    parser.add_argument(
+        "--solo",
+        type=str,
+        help="if you only want one tag cat, name it here(if none, all 10 categories will be saved to feature csv)"
+    )
+    
+    parser.add_argument(
+        "--csvdebug",
+        type=str,
+        help="this takes a category name, and makes all rows of that zero(this is just to make spotting petterns in the feature csv easier, not for use with solo)"
     )
     
     parser.add_argument(
