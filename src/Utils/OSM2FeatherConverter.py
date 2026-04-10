@@ -16,6 +16,7 @@ import pandana as pdna
 ox.settings.use_cache = True
 ox.settings.log_console = True
 
+
 def Convert(args):
     '''
     This function takes in a bbox (a set of coordinates to indicate an area on a map)
@@ -281,7 +282,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
             )
             nearest_pois[cat] = nearest_pois.sum(axis=1)
             nearest_pois = nearest_pois.iloc[:,-1:].truediv(20)
-            nearest_pois = distance - nearest_pois
+            #nearest_pois = distance - nearest_pois #inverts output
             #nearest_pois.columns = [cat]
     
             # Count nodes that have this category's nearest POI within threshold(deleted threshold, we ball)
