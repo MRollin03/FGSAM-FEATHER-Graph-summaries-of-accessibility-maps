@@ -281,6 +281,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
             )
             nearest_pois[cat] = nearest_pois.sum(axis=1)
             nearest_pois = nearest_pois.iloc[:,-1:].truediv(20)
+            nearest_pois = distance - nearest_pois
             #nearest_pois.columns = [cat]
     
             # Count nodes that have this category's nearest POI within threshold(deleted threshold, we ball)
