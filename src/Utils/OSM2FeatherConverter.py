@@ -74,9 +74,9 @@ def Convert(args):
     if not os.path.exists(graphml_path):
         
         if args.type == "BBOX":
-            G = ox.graph.graph_from_bbox(args.bbox, simplify=True)
+            G = ox.graph.graph_from_bbox(args.bbox, simplify=True,network_type="walk")
         if args.type == "PLACE":
-            G = ox.graph.graph_from_place(args.place, simplify=True)
+            G = ox.graph.graph_from_place(args.place, simplify=True,network_type="walk")
         ox.io.save_graphml(G, graphml_path)
     else:
         G = ox.io.load_graphml(graphml_path)
