@@ -248,10 +248,10 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
         "physical_exercise":    all_pois[all_pois["leisure"].isin(["fitness_centre", "fitness_station", "sports_centre", "swimming_pool"])],
 
         # --- SERVICES ---
-        "services":             all_pois[all_pois["amenity"].isin(["fire_station", "police", "post_office", "post_box", "townhall", "toilets"])],
+        "services":             all_pois[all_pois["amenity"].isin(["fire_station", "police", "post_office", "post_box", "townhall"])],
 
         # --- HEALTHCARE ---
-        "healthcare":           all_pois[all_pois["amenity"].isin(["clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"])],
+        "healthcare":           all_pois[all_pois["amenity"].isin(["clinic", "dentist", "doctors", "hospital", "pharmacy"])],
 
         # --- FINANCIAL ---
         "financial":            all_pois[all_pois["amenity"].isin(["atm", "bank", "payment_terminal", "payment_centre"])],
