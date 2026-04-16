@@ -40,7 +40,7 @@ def Convert(args):
             # Eating
             "pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten",
             # Cultural Activities
-            "cinema", "community_centre", "theatre",
+            "cinema", "community_centre", "theatre", "arts_centre", "events_venue", "exhibition_centre", "music_venue",
             # Services
             "fire_station", "police", "post_office", "post_box", "townhall", "toilets",
             # Healthcare
@@ -154,11 +154,11 @@ def Convert(args):
             legend=True,
             legend_kwds={
                 "shrink": 0.5,
-                "label": f"Number of pois ≤ {vmax} m",
+                "label": f"Average distance to any pois ≤ {vmax} m",
                 "orientation": "vertical"
             },
             vmin=vmin,
-            vmax=args.distance
+            vmax=vmax
         )
         
         plt.savefig(args.output + "/" + args.title + "/" + "all_pois")
@@ -184,11 +184,11 @@ def Convert(args):
             legend=True,
             legend_kwds={
                 "shrink": 0.5,
-                "label": f"Number of pois ≤ {vmax} m",
+                "label": f"Average distance to {args.solo } ≤ {args.distance} m",
                 "orientation": "vertical"
             },
             vmin=vmin,
-            vmax=args.distance
+            vmax=vmax
         )
         
         plt.savefig(args.output + "/" + args.title + "/" + args.solo + "_pois")
