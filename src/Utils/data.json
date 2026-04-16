@@ -1,0 +1,97 @@
+[
+  {
+    "order": 10,
+    "thetamax": 10,
+    "evalpoints": 50
+  },
+  {
+    "name": "Washington DC",
+    "bbox": {
+      "west": -77.0366,
+      "south": 38.8951,
+      "east": -77.0365,
+      "north": 38.8952
+    }
+  },
+  {
+    "name": "Aberdeen, Scotland",
+    "bbox": {
+      "west": -2.0943,
+      "south": 57.1496,
+      "east": -2.0942,
+      "north": 57.1497
+    }
+  },
+  {
+    "name": "Gothenburg, Sweden",
+    "bbox": {
+      "west": 11.9745,
+      "south": 57.7088,
+      "east": 11.9746,
+      "north": 57.7089
+    }
+  },
+  {
+    "name": "Bordeaux Métropole, France",
+    "bbox": {
+      "west": -0.5791,
+      "south": 44.8377,
+      "east": -0.579,
+      "north": 44.8378
+    }
+  },
+  {
+    "name": "Philadelphia, Pennsylvania",
+    "bbox": {
+      "west": -75.1652,
+      "south": 39.9525,
+      "east": -75.1651,
+      "north": 39.9526
+    }
+  },
+  {
+    "name": "Los Angeles, California",
+    "bbox": {
+      "west": -118.2436,
+      "south": 34.0522,
+      "east": -118.2435,
+      "north": 34.0523
+    }
+  },
+  {
+    "name": "Mexico City, Mexico",
+    "bbox": {
+      "west": -99.1332,
+      "south": 19.4326,
+      "east": -99.1331,
+      "north": 19.4327
+    }
+  },
+  {
+    "name": "Greater Melbourne, Australia",
+    "bbox": {
+      "west": 144.9631,
+      "south": -37.8136,
+      "east": 144.9632,
+      "north": -37.8135
+    }
+  },
+  {
+    "name": "Copenhagen, Denmark",
+    "bbox": {
+      "west": 12.5683,
+      "south": 55.676,
+      "east": 12.5684,
+      "north": 55.6761
+    }
+  },
+  {
+    "name": "Daegu, South Korea",
+    "bbox": {
+      "west": 128.6014,
+      "south": 35.8714,
+      "east": 128.6015,
+      "north": 35.8715
+    }
+  }
+]
