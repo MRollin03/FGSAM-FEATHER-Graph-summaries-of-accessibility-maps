@@ -1,57 +1,60 @@
 #!/bin/bash
 
-#
-# This script runs a long JSON of cites to do Feather analysis 
-# All of the inputs/argemnts for each city can be added to the 
-# ./batchdata.json file and settings to the settings.json
-#
-
-
-# read each item in the JSON array to an item in the Bash array
-readarray -t settings < <(jq --compact-output '.[]' data.json)
+# Læs alle elementer fra data.json ind i et array
 readarray -t locations < <(jq --compact-output '.[]' data.json)
 
+# Hent globale settings fra det første element (index 0)
 item=${locations[0]}
-  evalpoints=$(jq --raw-output '.eval_points' <<< "$item")
-  thetamax=$(jq --raw-output '.thetamax' <<< "$item")
-  order=$(jq --raw-output '.order' <<< "$item")
-  output=$(jq --raw-output '.output' <<< "$item")
+evalpoints=$(jq --raw-output '.evalpoints' <<< "$item")
+thetamax=$(jq --raw-output '.thetamax' <<< "$item")
+order=$(jq --raw-output '.order' <<< "$item")
+output=$(jq --raw-output '.output' <<< "$item")
 
-  echo "-------------------------------------------"
-  echo "Settings for batch running Feather Analysis"
-  echo "-------------------------------------------"
-  echo "evalpoints: $evalpoints"
-  echo "thetamax: $thetamax"
-  echo "order: $order"
-  echo "-------------------------------------------"
-  echo ""
+if [ "$output" == "null" ]; then
+    echo "Fejl: Output-sti ikke fundet i JSON."
+    exit 1
+fi
 
-# iterate through the Bash array
+echo "-------------------------------------------"
+echo "Settings for batch running Feather Analysis"
+echo "-------------------------------------------"
+echo "evalpoints: $evalpoints | thetamax: $thetamax | order: $order"
+echo "-------------------------------------------"
+
+# Iterer gennem lokationer (starter fra index 1)
 for item in "${locations[@]:1}"; do
+    name=$(jq --raw-output '.name' <<< "$item")
+    DIRECTORY="projects/$name"
 
-  # If name/file already exist in projects folder skip
-  name=$(jq --raw-output '.name' <<< "$item")
-  DIRECTORY="projects/$name"
-  if [! -d "$DIRECTORY" ]; then
-    echo "$DIRECTORY does exist. Skipping OSM to feather compatibility conversion"
+    # Tjek om projektet allerede findes
+    if [ -d "$DIRECTORY" ]; then
+        echo "Skipping $name: Directory already exists."
+        continue
+    fi
+
+    echo "Processing city: $name"
+
+    # Checking if its BBOX or PLACE
     bbox=$(jq --raw-output '.bbox' <<< "$item")
-    west=$(jq --raw-output '.bbox.west' <<< "$item")
-    south=$(jq --raw-output '.bbox.south' <<< "$item")
-    east=$(jq --raw-output '.bbox.east' <<< "$item")
-    north=$(jq --raw-output '.bbox.north' <<< "$item")
-    echo "City name: $name"
-    echo $bbox
-    echo $west
-    echo $south
-    echo $east
-    echo $north
+    if [ $bbox != null ]; then
+      # Hent koordinater
+      west=$(jq --raw-output '.bbox.west' <<< "$item")
+      south=$(jq --raw-output '.bbox.south' <<< "$item")
+      east=$(jq --raw-output '.bbox.east' <<< "$item")
+      north=$(jq --raw-output '.bbox.north' <<< "$item")
 
-    #Converts OSM data into feather compatible input files
-    python OSM2FeatherConverter.py --type BBOX --bbox "$west" "$south" "$east" "$north" --title "$name" --output "$output" --distance 1000
+      # 1. Konverter OSM data
+      python OSM2FeatherConverter.py --type BBOX --bbox "$west" "$south" "$east" "$north" \
+          --title "$name" --output "$output" --distance 1000
+      else
 
-  fi
+      python OSM2FeatherConverter.py --type PLACE --place "$name" --title "$name" --output "$output" --distance 1000
 
-  #Feeds the files into Feather to create Node embeddings
-  python FEATHER/src/main.py --graph-input "$output""/""$name""/FeatherEdges.csv" --feature-input "./""$output""/""$name""/featuresteis.csv"
-
+    fi
+    
+    # 2. Kør Feather analyse
+    python FEATHER/src/main.py \
+        --graph-input "${output}/${name}/FeatherEdges.csv" \
+        --feature-input "./${output}/${name}/featuresteis.csv" \
+        --output "./${output}/${name}/FeatherResult.csv"
 done
