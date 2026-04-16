@@ -219,42 +219,38 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     the threshold distance.
     '''
 
+    # Hjælpefunktion der returnerer tom række hvis kolonnen mangler
+    def filter_poi(df, col, values):
+        if col in df.columns:
+            return df[df[col].isin(values)]
+        return pd.DataFrame(columns=df.columns)
+
     categories = {
-        # --- OUTDOOR ACTIVITIES ---
-        "outdoor_activities":   pd.concat([
-                                    all_pois[all_pois["leisure"].isin(["park", "playground", "bathing_place", "garden", "pitch", "stadium", "swimming_area", "track"])],
-                                    all_pois[all_pois["tourism"] == "picnic_site"]
-                                ]).drop_duplicates(),
+        "outdoor_activities": pd.concat([
+            filter_poi(all_pois, "leisure", ["park", "playground", "bathing_place", "garden", "pitch", "stadium", "swimming_area", "track"]),
+            filter_poi(all_pois, "tourism", ["picnic_site"])
+        ]).drop_duplicates(),
 
-        # --- LEARNING ---
-        "learning":             all_pois[all_pois["amenity"].isin(["college", "school", "library", "kindergarten", "university", "training"])],
+        "learning": filter_poi(all_pois, "amenity", ["college", "school", "library", "kindergarten", "university", "training"]),
 
-        # --- SUPPLIES ---
-        "supplies":             all_pois[all_pois["shop"].isin(["department_store", "general", "mall", "supermarket", "convenience", "bakery", "butcher", "greengrocer", "books", "stationery", "clothes", "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware"])],
+        "supplies": filter_poi(all_pois, "shop", ["department_store", "general", "mall", "supermarket", "convenience", "bakery", "butcher", "greengrocer", "books", "stationery", "clothes", "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware"]),
 
-        # --- EATING ---
-        "eating":               all_pois[all_pois["amenity"].isin(["pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"])],
+        "eating": filter_poi(all_pois, "amenity", ["pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"]),
 
-        # --- MOVING ---
-        "moving":               all_pois[all_pois["public_transport"].isin(["platform", "station", "stop_position"])],
+        "moving": filter_poi(all_pois, "public_transport", ["platform", "station", "stop_position"]),
 
-        # --- CULTURAL ACTIVITIES ---
-        "cultural_activities":  pd.concat([
-                                    all_pois[all_pois["amenity"].isin(["cinema", "community_centre", "theatre"])],
-                                    all_pois[all_pois["tourism"].isin(["aquarium", "gallery", "museum", "zoo"])]
-                                ]).drop_duplicates(),
+        "cultural_activities": pd.concat([
+            filter_poi(all_pois, "amenity", ["cinema", "community_centre", "theatre"]),
+            filter_poi(all_pois, "tourism", ["aquarium", "gallery", "museum", "zoo"])
+        ]).drop_duplicates(),
 
-        # --- PHYSICAL EXERCISE ---
-        "physical_exercise":    all_pois[all_pois["leisure"].isin(["fitness_centre", "fitness_station", "sports_centre", "swimming_pool"])],
+        "physical_exercise": filter_poi(all_pois, "leisure", ["fitness_centre", "fitness_station", "sports_centre", "swimming_pool"]),
 
-        # --- SERVICES ---
-        "services":             all_pois[all_pois["amenity"].isin(["fire_station", "police", "post_office", "post_box", "townhall", "toilets"])],
+        "services": filter_poi(all_pois, "amenity", ["fire_station", "police", "post_office", "post_box", "townhall", "toilets"]),
 
-        # --- HEALTHCARE ---
-        "healthcare":           all_pois[all_pois["amenity"].isin(["clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"])],
+        "healthcare": filter_poi(all_pois, "amenity", ["clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"]),
 
-        # --- FINANCIAL ---
-        "financial":            all_pois[all_pois["amenity"].isin(["atm", "bank", "payment_terminal", "payment_centre"])],
+        "financial": filter_poi(all_pois, "amenity", ["atm", "bank", "payment_terminal", "payment_centre"]),
     }
 
     distance = args.distance   # max search distance (metres)
@@ -281,7 +277,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
                 num_pois=20,
             )
             nearest_pois[cat] = nearest_pois.sum(axis=1)
-            nearest_pois = nearest_pois.iloc[:,-1:].truediv(20)
+            nearest_pois = nearest_pois.iloc[:,-1:].truediv(20).round(3)
             #nearest_pois = distance - nearest_pois #inverts output
             #nearest_pois.columns = [cat]
     
@@ -339,7 +335,6 @@ if __name__ == "__main__":
         required=True,
         help="Title for the project"
     )
-
 
     parser.add_argument(
         "--type",
