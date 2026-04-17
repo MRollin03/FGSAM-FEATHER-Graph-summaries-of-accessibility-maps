@@ -64,13 +64,14 @@ for feature in feature_names:
 # now i attempt a clumsy rewrite of the multi-nar example!
 
 x = np.arange(len(label_list))  # the label locations
+x = x*2
 width = 1.25  # the width of the bars
 multiplier = 0
 
-fig, ax = plt.subplots(layout='constrained', figsize=(14,5))
+fig, ax = plt.subplots(layout='constrained', figsize=(14,8))
 
 for blabel, valuez in feature_dict.items():
-    offset = width * multiplier
+    offset = (width * multiplier) *2
     rects = ax.bar(x + offset, valuez, width, label=blabel)
     ax.bar_label(rects, padding=3)
     multiplier += 5
@@ -78,7 +79,7 @@ for blabel, valuez in feature_dict.items():
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Percentage')
 ax.set_title('Feature Distribution')
-ax.set_xticks(x + width, label_list)
+ax.set_xticks((x + width)*11, label_list)
 ax.legend(loc='upper left', ncols=5)
 ax.set_ylim(0, 100)
 
@@ -123,4 +124,31 @@ plt.show()
 # print(m_900)
 # print(m_1200)
 # print(m_1500) ## quick check if the percentage values are actually what they are supposed to be
+
+# =============================================================================
+# =============================================================================
+# funnytoo = 1
+# for feature in feature_names:
+#     jungle_is_massive = data[feature]#bring up the bass
+#     jungle_is_massive = jungle_is_massive.sort_values() #i tried to sort by, but as it's only one col it was stupid
+#     print(feature, ": ")#print formatting
+#     dist5 = (DISTANCE / 5) #make the increments flex with distance
+#     incrementor = 0 #you know who it is!
+#     funnythree = 0
+#     while incrementor < DISTANCE:
+#         funny = [] # it's ya boy, funny!
+#         incrementor += dist5
+#         df1 = jungle_is_massive[jungle_is_massive <= incrementor]
+#         val = np.round((df1.shape[0]/length)*100,3)
+#         #print( incrementor , "m range percentage:", val)
+#         jungle_is_massive =  jungle_is_massive[jungle_is_massive > incrementor]
+#         funny.append(val)
+#         if funnytoo == 1:
+#             feature_dict[label_list[funnythree]] = funny
+#         else:
+#             feature_dict[label_list[funnythree]].append(val) 
+#         funnythree += 1
+#        
+#     funnytoo = 0
+# print(feature_dict)
 # =============================================================================
