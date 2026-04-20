@@ -2,9 +2,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-CSV_FILE = "Utils\projects\Copenhagen3\FeatherResult.csv"
-OUTPUT = "./projects/Copenhagen3/"
-LABEL_COL = "København"
+CSV_FILE = "Utils\projects\Gothenburg\FeatherResult.csv"
+OUTPUT = "./projects/Gothenburg/"
+LABEL_COL = "Gothenburg"
 ORDER=5
 THETA_MAX=2.5
 
@@ -31,7 +31,7 @@ def count_features(dataframe):
     unique_features = set()
 
     for col in dataframe.columns:
-        pls = col.rsplit("_", 1)
+        pls = col.rsplit("_", 1) #rsplit splits from the right insted of the left. removes the numbers
         unique_features.add(pls[0])
     
     print(f"Counted features:  {len(unique_features)}")
@@ -43,14 +43,14 @@ num_features = count_features(data)
 def split_dataframe(dataframe):
     decider = np.median(dataframe.mean(axis=0))
 
-    dataframe["is_high"] = dataframe.mean(axis=1) > decider #Add this temporary column
+    dataframe["is_high_median"] = dataframe.mean(axis=1) > decider #Add this temporary column
 
-    df_high = dataframe.loc[dataframe["is_high"] == True]
-    df_low  = dataframe.loc[dataframe["is_high"] == False]
+    df_high = dataframe.loc[dataframe["is_high_median"] == True]
+    df_low  = dataframe.loc[dataframe["is_high_median"] == False]
 
-    #Remove it again
-    df_high = df_high.drop(columns=["is_high"], errors='ignore')
-    df_low = df_low.drop(columns=["is_high"], errors='ignore')
+    #Remove it again, dont know if this can be made better
+    df_high = df_high.drop(columns=["is_high_median"], errors='ignore') 
+    df_low = df_low.drop(columns=["is_high_median"], errors='ignore')
 
     return df_high, df_low
 
@@ -67,7 +67,7 @@ def get_median(df_high, df_low):
     return df_high.median(axis=0), df_low.median(axis=0)
 
 #Plotting, removed median, can be readded later
-def plotter(order, mean, std, ax, theta, isHigh, color, theta_max = 2.5):
+def plotter(order, mean, std, ax, theta, isHigh, color):
     if(isHigh):
         ax.plot(theta, mean, color=color, label=f"High distribution order {order}")
         ax.fill_between(theta, mean - std, mean + std, color=color, alpha=0.4)
@@ -75,9 +75,9 @@ def plotter(order, mean, std, ax, theta, isHigh, color, theta_max = 2.5):
         ax.plot(theta, mean, color=color, label=f"Low distribution order {order}")
         ax.fill_between(theta, mean - std, mean + std, color=color, alpha=0.4)
 
-    ax.set_xlim(0, theta_max)
+    ax.set_xlim(0, THETA_MAX)
     ax.set_xlabel(r'$\theta$')     
-    ax.set_ylabel('Characteristic Function Value')
+    ax.set_ylabel("CF Value")
     ax.legend()  
 
     print("plotting")
@@ -97,11 +97,10 @@ def combined_orders(data, order, theta_max, eval_points):
         #calculate means, std and median
         data_high_mean, data_low_mean = get_mean(data_high, data_low)
         data_high_std, data_low_std = get_std(data_high, data_low)
-        data_high_median, data_low_median = get_median(data_high, data_low)
-        #theta
+        
         theta = np.linspace(0, THETA_MAX, len(data_high_mean))
 
-        #plot
+        #color and plot
         high = color_arr[2 * i]
         low = color_arr[2 * i + 1]
 
@@ -118,7 +117,9 @@ combined_orders(data, ORDER, THETA_MAX, 10)
 
 #makes multiple graph, with all orders combined, no seperation of features
 def separate_orders(data, eval_points):
-    _, axes = plt.subplots(ORDER, 1, figsize=(10, 3 * ORDER), constrained_layout=True)
+    _, axes = plt.subplots(ORDER, 1, figsize=(10, 3 * ORDER))
+    plt.subplots_adjust(bottom=0.15)
+    plt.subplots_adjust(left=0.15)
 
     for o in range(ORDER):
         ax = axes[o]
@@ -134,7 +135,7 @@ def separate_orders(data, eval_points):
         ax = plotter(o, data_high_mean, data_high_std, ax, theta, isHigh=True, color='blue')
         ax = plotter(o, data_low_mean, data_low_std, ax, theta, isHigh=False, color='red')
         ax.set_title(f"Order: {o}")
-
+    plt.tight_layout()
     plt.show()
 
 separate_orders(data, 10)
@@ -142,7 +143,10 @@ separate_orders(data, 10)
 #Looks at one feature across all orders
 def feature_in_orders(feature, data, eval_points):
     data_subset = data.filter(like=feature)
-    _, ax = plt.subplots(ORDER, 1, figsize=(10, 8), constrained_layout=True)
+
+    _, ax = plt.subplots(ORDER, 1, figsize=(10, 8))
+    plt.subplots_adjust(bottom=0.15)
+    plt.subplots_adjust(left=0.15)
 
     for o in range(ORDER):
         start = int((o * eval_points) // THETA_MAX) #We only have one feature
@@ -158,8 +162,10 @@ def feature_in_orders(feature, data, eval_points):
         ax[o] = plotter(o, data_low_mean, data_low_std, ax[o], theta, isHigh=False, color='red')
         ax[o].set_title(f"Order: {o} Feature: {feature}")
 
+    plt.tight_layout()
     plt.show()
-feature_in_orders("financial", data, 10)
+
+feature_in_orders("eating", data, 10)
 
 #NOTE: if you want to go through all features
 """
