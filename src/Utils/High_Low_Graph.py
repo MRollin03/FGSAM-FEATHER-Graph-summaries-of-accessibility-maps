@@ -2,51 +2,24 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-CSV_FILE = "Utils\projects\Gothenburg\FeatherResult.csv"
-OUTPUT = "./projects/Gothenburg/"
-LABEL_COL = "Gothenburg"
+CSV_FILE = "projects\Washington\FeatherResult.csv"
+OUTPUT = "./projects/Washington/"
+LABEL_COL = "Washington"
 ORDER=5
 THETA_MAX=2.5
+DISTANCE = 2000
 
-features = ["outdoor_activities","learning","supplies","eating","moving","cultural_activities","physical_exercise","services","healthcare","financial"]
-
-#Drop imaginary columns
-def columns_drop(dataframe):
-    imaginary = []
-    for col in dataframe.columns:
-        if 'img' in col and col not in imaginary:
-            imaginary.append(col)
-    
-    return dataframe.drop(columns=imaginary)
-
-data = pd.read_csv(CSV_FILE)
-data = data.drop(columns =['id'])
-data = columns_drop(data)
-
-print(data)
-print("________________________________________")
-
-#count features
-def count_features(dataframe):
-    unique_features = set()
-
-    for col in dataframe.columns:
-        pls = col.rsplit("_", 1) #rsplit splits from the right insted of the left. removes the numbers
-        unique_features.add(pls[0])
-    
-    print(f"Counted features:  {len(unique_features)}")
-    return len(unique_features)
-
-num_features = count_features(data)
-
-#split dataframe
+#Helper functions
+"""splits dataframe into two parts, devied by the median of the mean."""
 def split_dataframe(dataframe):
     decider = np.median(dataframe.mean(axis=0))
 
     dataframe["is_high_median"] = dataframe.mean(axis=1) > decider #Add this temporary column
+    print(dataframe.mean(axis=1))
+    print(dataframe["is_high_median"])
 
-    df_high = dataframe.loc[dataframe["is_high_median"] == True]
-    df_low  = dataframe.loc[dataframe["is_high_median"] == False]
+    df_high = dataframe.loc[dataframe["is_high_median"] == True] #goes to higher if higher than median
+    df_low  = dataframe.loc[dataframe["is_high_median"] == False] #same as above but for lower
 
     #Remove it again, dont know if this can be made better
     df_high = df_high.drop(columns=["is_high_median"], errors='ignore') 
@@ -54,44 +27,71 @@ def split_dataframe(dataframe):
 
     return df_high, df_low
 
-data_high, data_low = split_dataframe(data)
-
-#get stds, means and medians
+"""Returns the mean of df_high and df_low"""
 def get_mean(df_high, df_low):
     return df_high.mean(axis=0), df_low.mean(axis=0) 
 
+"""Returns the standard deviations of df_high and df_low"""
 def get_std(df_high, df_low):
     return df_high.std(axis=0), df_low.std(axis=0)
 
-def get_median(df_high, df_low):
-    return df_high.median(axis=0), df_low.median(axis=0)
-
-#Plotting, removed median, can be readded later
-def plotter(order, mean, std, ax, theta, isHigh, color):
-    if(isHigh):
-        ax.plot(theta, mean, color=color, label=f"High distribution order {order}")
-        ax.fill_between(theta, mean - std, mean + std, color=color, alpha=0.4)
-    else:
-        ax.plot(theta, mean, color=color, label=f"Low distribution order {order}")
-        ax.fill_between(theta, mean - std, mean + std, color=color, alpha=0.4)
+"""Uniform plotting function, changes depending on if the graph is higher or the graph is lower"""
+def High_low_plotter(order, mean, std, ax, theta, color): #isHigh,
+    #NOTE: removed median, since very little variation, can be added again, if demmed necessary
+    #if(isHigh):
+    ax.plot(theta, mean, color=color, label=f"High order {order}")
+    ax.fill_between(theta, mean - std, mean + std, color=color, alpha=0.4)
+    """else:
+        ax.plot(theta, mean, color=color, label=f"Low order {order}")
+        ax.fill_between(theta, mean - std, mean + std, color=color, alpha=0.4)"""
 
     ax.set_xlim(0, THETA_MAX)
-    ax.set_xlabel(r'$\theta$')     
+    ax.set_xlabel(r'Evaluation point: $\theta$')     
     ax.set_ylabel("CF Value")
-    ax.legend()  
+    ax.set_ylim(-1.1,1.1) #adding a bit of padding
 
     print("plotting")
     return ax
 
-#makes one graph, with all orders combined, no seperation of features
-def combined_orders(data, order, theta_max, eval_points):
-    color_arr = plt.cm.tab20(np.linspace(0, 1, order*2)) #times 2 because we separate high and low
+features = ["outdoor_activities","learning","supplies","eating","moving","cultural_activities","physical_exercise","services","healthcare","financial"]
+color_arr = ["red", "blue", "green", "orange", "black", "yellow", "grey", "brown", "purple", "pink"]
+
+#Drop imaginary columns
+
+data = pd.read_csv(CSV_FILE)
+data = data.drop(columns =['id'])
+
+"""Drop imaginary columns, keeping only the "real" ones"""
+imaginary = []
+for col in data.columns:
+    if "img" in col and col not in imaginary:
+        imaginary.append(col)
+data = data.drop(columns=imaginary)
+
+
+"""count the number of features"""
+unique_features = set()
+
+for col in data.columns:
+    pls = col.rsplit("_", 1) #rsplit splits from the right insted of the left. removes the numbers
+    unique_features.add(pls[0])
+    print(pls)
+
+num_features = len(unique_features)
+print(f"Counted features:  {num_features}")
+
+"""Creates one graph, showing the characteristic function value distribution over theta, with all orders combined to 
+give an overall view. There us no seperation of features, all features are included.
+"""
+
+"""
+def combined_orders(eval_points=10):
     _, ax = plt.subplots(1, 1, figsize=(10, 10))
 
-    for i in range(order):
+    for o in range(ORDER):
         #Separate into order amount of slices
-        start = int((i * eval_points * num_features) //theta_max)
-        end = int(((i+1) *eval_points * num_features) //theta_max)
+        start = int((o * eval_points * num_features) //THETA_MAX)
+        end = int(((o+1) *eval_points * num_features) //THETA_MAX)
         
         data_high, data_low = split_dataframe(data.iloc[:, start:end])
         #calculate means, std and median
@@ -101,28 +101,29 @@ def combined_orders(data, order, theta_max, eval_points):
         theta = np.linspace(0, THETA_MAX, len(data_high_mean))
 
         #color and plot
-        high = color_arr[2 * i]
-        low = color_arr[2 * i + 1]
+        high = color_arr[2*o]
+        low = color_arr[2*o+1]
 
-        ax = plotter(i, data_high_mean, data_high_std, ax, theta, isHigh=True, color=high)
-        ax = plotter(i, data_low_mean, data_low_std, ax, theta, isHigh=False, color=low)
+        ax = High_low_plotter(o, data_high_mean, data_high_std, ax, theta, isHigh=True, color=high)
+        ax = High_low_plotter(o, data_low_mean, data_low_std, ax, theta, isHigh=False, color=low)
 
-    ax.set_title("Mean across all orders")
+    ax.set_title(f"{LABEL_COL} - Distribution across all orders")
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.02), ncol=4)  
 
     plt.tight_layout()
-    plt.show()
-    #plt.savefig("./projects/Copenhagen3/plsall_combinedlow.png")
+    #plt.show()
+    plt.savefig(OUTPUT + "combinedHighLow.png")
 
-combined_orders(data, ORDER, THETA_MAX, 10)
+#combined_orders()
+"""
+"""Creates multiple graphs showing the distribution of characteristic function values over theata, with all orders seperated, 
+but no seperation of features"""
 
-#makes multiple graph, with all orders combined, no seperation of features
-def separate_orders(data, eval_points):
-    _, axes = plt.subplots(ORDER, 1, figsize=(10, 3 * ORDER))
-    plt.subplots_adjust(bottom=0.15)
-    plt.subplots_adjust(left=0.15)
+"""
+def separate_orders(eval_points = 10):
+    fig, axes = plt.subplots(ORDER, 1, figsize=(14, 5 * ORDER))
 
     for o in range(ORDER):
-        ax = axes[o]
         start = int((o * eval_points * num_features) // THETA_MAX)
         end = int(((o+1) * eval_points * num_features) // THETA_MAX)
 
@@ -132,24 +133,29 @@ def separate_orders(data, eval_points):
 
         theta = np.linspace(0, THETA_MAX, len(data_high_mean))
 
-        ax = plotter(o, data_high_mean, data_high_std, ax, theta, isHigh=True, color='blue')
-        ax = plotter(o, data_low_mean, data_low_std, ax, theta, isHigh=False, color='red')
-        ax.set_title(f"Order: {o}")
+        axes[o] = High_low_plotter(o, data_high_mean, data_high_std, axes[o], theta, isHigh=True, color='blue')
+        axes[o] = High_low_plotter(o, data_low_mean, data_low_std, axes[o], theta, isHigh=False, color='red')
+        axes[o].set_title(f"Order: {o}")
+        axes[o].legend(loc='center left', ncol=1, bbox_to_anchor=(1, 0.5))
+    
+    fig.suptitle(f"{LABEL_COL} - Distribution across separate orders")
     plt.tight_layout()
-    plt.show()
+    fig.subplots_adjust(hspace=0.6, top=0.92)
+    plt.savefig(OUTPUT + "separatedHighLow.png")
 
-separate_orders(data, 10)
+#separate_orders()"""
 
-#Looks at one feature across all orders
-def feature_in_orders(feature, data, eval_points):
-    data_subset = data.filter(like=feature)
+"""Creates multiple graphs showing the distribution of characteristic function values over theta, with all orders seperated, 
+looking at one specified feature"""
 
-    _, ax = plt.subplots(ORDER, 1, figsize=(10, 8))
-    plt.subplots_adjust(bottom=0.15)
-    plt.subplots_adjust(left=0.15)
+"""
+def feature_in_orders(feature, eval_points = 10):
+    data_subset = data.filter(like=feature) 
+
+    fig, axes = plt.subplots(ORDER, 1, figsize=(10, 5*ORDER))
 
     for o in range(ORDER):
-        start = int((o * eval_points) // THETA_MAX) #We only have one feature
+        start = int((o * eval_points) // THETA_MAX) #We only have one feature, so no multiplication
         end = int(((o+1) * eval_points) // THETA_MAX)
 
         data_high, data_low = split_dataframe(data_subset.iloc[:, start:end])
@@ -158,17 +164,134 @@ def feature_in_orders(feature, data, eval_points):
 
         theta = np.linspace(0, THETA_MAX, len(data_high_mean))
 
-        ax[o] = plotter(o, data_high_mean, data_high_std, ax[o], theta, isHigh=True, color='blue')
-        ax[o] = plotter(o, data_low_mean, data_low_std, ax[o], theta, isHigh=False, color='red')
-        ax[o].set_title(f"Order: {o} Feature: {feature}")
+        axes[o] = High_low_plotter(o, data_high_mean, data_high_std, axes[o], theta, isHigh=True, color='blue')
+        axes[o] = High_low_plotter(o, data_low_mean, data_low_std, axes[o], theta, isHigh=False, color='red')
+        axes[o].set_title(f"Order: {o}")
+        axes[o].legend(loc='center left', ncol=1, bbox_to_anchor=(1, 0.5))
 
+    fig.suptitle(f"{LABEL_COL} - Distribution across separate orders {feature}")
     plt.tight_layout()
-    plt.show()
 
-feature_in_orders("eating", data, 10)
+    fig.subplots_adjust(hspace=0.6, top=0.92)
+    plt.savefig(OUTPUT + feature +"HighLow.png")
+
+
+feature_in_orders("moving")
 
 #NOTE: if you want to go through all features
 """
+#for feature in features:
+    #feature_in_orders(feature)
+    
+
+
+def teis_stuff_single(feature):
+    cool = pd.read_csv("./projects/" + LABEL_COL + "/featuresteis.csv")
+
+    data_learning = pd.concat([data, cool], ignore_index=False, axis=1)
+    print(data_learning.columns)
+    print(data_learning)
+
+    dist5 = (DISTANCE / 5) #make the increments flex with distance
+    incrementor = 0 
+
+    df_list = []
+
+    data_learning = data_learning.filter(like=feature)
+    
+    while incrementor < DISTANCE:
+        incrementor += dist5
+        print(incrementor)
+
+        tmp = data_learning[data_learning[feature] <= incrementor]
+        tmp = tmp.sort_values(by=[feature])
+        df_list.append(tmp)
+        #val = np.round((tmp.shape[0])*100,3)
+        #print( incrementor , "m range percentage:", val)
+        data_learning = data_learning[data_learning[feature] > incrementor]
+        #print(f"data_learning:______  {data_learning}")
+
+
+    print(f"final: {df_list}")
+    print(len(df_list))
+    _, axes = plt.subplots(5 ,1, figsize=(14, 5 * ORDER))
+    count = 0
+    for lst in df_list:
+        print(lst)
+        
+        lst = lst.drop(columns=[feature])
+        part_mean = lst.mean(axis=1)
+
+        theta = np.linspace(0, THETA_MAX, len(part_mean))
+        std = lst.std(axis=1)
+
+        axes[count].plot(theta, part_mean, color=color_arr[count], label=f"mean for {feature} ")
+        axes[count].fill_between(theta, part_mean - std, part_mean + std, color=color_arr[count], alpha=0.4)
+        axes[count].legend()
+
+        axes[count].set_xlim(0, THETA_MAX)
+        axes[count].set_xlabel(r'Evaluation point: $\theta$')     
+        axes[count].set_ylabel("CF Value")
+        axes[count].set_ylim(-1.1,1.1) 
+        count +=1
+    
+    plt.tight_layout()
+    plt.savefig(OUTPUT + f"{feature}meanwave")
+        
+
+
 for feature in features:
-    feature_in_orders(feature, data, 10)
-    """
+    teis_stuff_single(feature=feature)
+
+def teis_stuff_order(feature, eval_points=10):
+    cool = pd.read_csv("./projects/" + LABEL_COL + "/featuresteis.csv")
+
+    data_learning = pd.concat([data, cool], ignore_index=False, axis=1)
+
+    dist5 = (DISTANCE / 5) #make the increments flex with distance
+    incrementor = 0 
+
+    df_list = []
+
+    data_learning = data_learning.filter(like=feature)
+
+    for o in range(ORDER):
+        start = int((o * eval_points * num_features) //THETA_MAX)
+        end = int(((o+1) *eval_points * num_features) //THETA_MAX)
+    
+    while incrementor < DISTANCE:
+        incrementor += dist5
+        print(incrementor)
+
+        tmp = data_learning[data_learning[feature] <= incrementor]
+        tmp = tmp.sort_values(by=[feature])
+        df_list.append(tmp)
+      
+        data_learning = data_learning[data_learning[feature] > incrementor]
+
+
+    print(f"final: {df_list}")
+    print(len(df_list))
+    _, axes = plt.subplots(5 ,1, figsize=(14, 5 * ORDER))
+    count = 0
+    for lst in df_list:
+        print(lst)
+        
+        lst = lst.drop(columns=[feature])
+        part_mean = lst.mean(axis=1)
+
+        theta = np.linspace(0, THETA_MAX, len(part_mean))
+        std = lst.std(axis=1)
+
+        axes[count].plot(theta, part_mean, color=color_arr[count], label=f"mean for {feature} ")
+        axes[count].fill_between(theta, part_mean - std, part_mean + std, color=color_arr[count], alpha=0.4)
+        axes[count].legend()
+
+        #axes[count].set_xlim(0, THETA_MAX)
+        axes[count].set_xlabel(r'Evaluation point: $\theta$')     
+        axes[count].set_ylabel("CF Value")
+        axes[count].set_ylim(-1.1,1.1) 
+        count +=1
+    
+    plt.tight_layout()
+    plt.savefig(OUTPUT + f"{feature}meanwave")
