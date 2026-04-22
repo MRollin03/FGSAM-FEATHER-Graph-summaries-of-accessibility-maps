@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 
 # this is my BALLER turbo grapher, the intent is to graph and quickly show a statistical display of the node distribution within a given accesiblilty csv.
 
-CSV_FILE = "projects/bordeaux_1500_all/featuresteis.csv"
-OUTPUT = "./projects/bordeaux/"
-LABEL_COL = "bordeaux"
-DISTANCE = 1500  #this is a surprize tool that will help us later.
+CSV_FILE = "projects/bordeaux_10k_all/featuresteis.csv"
+OUTPUT = "./projects/bordeaux_10k_all/"
+LABEL_COL = "bordeaux_10k_all"
+DISTANCE = 2000  #this is a surprize tool that will help us later.
 data = pd.read_csv(CSV_FILE)
 ## We read the csv file here, NOTE: this is not the post feather csv, but the pandana output.
 ### the initial version (this one) will only work with single feature .csv files. Later we will insert a function that allows multi col support.
@@ -34,24 +34,29 @@ print(feature_names)
 ## after a quick check i can conclude that this does not count the header row :D
 
 ### okay this is the real sauce that be going down:
-    
+
 ## the plan: we do a for loop on the feature names list, isolate the collum with said feature name.
 ## in this loop we then sort, the isolated colum, and enter a inner chop-shop loop.
 ## in this loop we use distance, to chop the rows into 5 segments, and place them in our graph dictionary( that i have not made yet)
 for feature in feature_names:
     jungle_is_massive = data[feature]#bring up the bass
     jungle_is_massive = jungle_is_massive.sort_values() #i tried to sort by, but as it's only one col it was stupid
-    print(feature, ": ")#print formatting
     dist5 = (DISTANCE / 5) #make the increments flex with distance
     incrementor = 0 #you know who it is!
     funny = [] # it's ya boy, funny!
+    totalp = 0 #this is just to check how much the tptal percentage adds to
     while incrementor < DISTANCE:
         incrementor += dist5
-        df1 = jungle_is_massive[jungle_is_massive <= incrementor]
-        val = np.round((df1.shape[0]/length)*100,3)
+        if incrementor == DISTANCE:
+            df1 = jungle_is_massive
+            val = np.round((jungle_is_massive.shape[0]/length)*100,3)
+        else:
+            df1 = jungle_is_massive[jungle_is_massive <= incrementor]
+            val = np.round((df1.shape[0]/length)*100,3)
         #print( incrementor , "m range percentage:", val)
         jungle_is_massive =  jungle_is_massive[jungle_is_massive > incrementor]
         funny.append(val)
+        totalp += val #due to the rounding this will not always be 100
         ## now i need to populate feature dict with the 5 percentage values!
        # if feature in feature_dict:
        #     feature_dict[feature] = feature_dict[feature], val
@@ -60,6 +65,7 @@ for feature in feature_names:
        
     #print(funny)
     feature_dict[feature] = funny
+    print(feature,": adds to --> " ,totalp)
         
 # now i attempt a clumsy rewrite of the multi-nar example!
 
