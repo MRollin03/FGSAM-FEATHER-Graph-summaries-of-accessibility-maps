@@ -255,7 +255,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
 
     distance = args.distance   # max search distance (metres)
     #dist = 500        # threshold for counting a POI as "accessible"
-    n["pois"] = 0
+    n["all_pois"] = 0
 
     frames = []
     if args.solo == None:
@@ -287,7 +287,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
                 n[cat] = nearest_pois[cat]
             else:
                 n[cat] = nearest_pois[cat]
-                n["pois"] += nearest_pois[cat]
+                n["all_pois"] += nearest_pois[cat]
             
             frames.append(nearest_pois)
     else:
@@ -314,12 +314,15 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
                 frames.append(nearest_pois)
     if not frames:
         raise RuntimeError("No POI categories had any data — feature CSV not written.")
+    n["all_pois"] = n["all_pois"].truediv(len(frames))
+    if args.solo == None:
+        frames.append(n["all_pois"])    
     featurez = pd.concat(frames, axis=1, sort=False)
     featurez.index = featurez.index.map(featherIDtoOSMID)
     featurez.sort_index(inplace=True)
     featurez.index.name = None
     featurez.to_csv("./"+ args.output + "/" + args.title + "/featuresteis.csv", index=False)
-    n["pois"] = n["pois"].truediv(len(frames))
+
     return n
 
 # ---------------------------------------------------------------------------

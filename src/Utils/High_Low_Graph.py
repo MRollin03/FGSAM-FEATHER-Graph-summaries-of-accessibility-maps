@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-CSV_FILE = "projects\Washington\FeatherResult.csv"
-OUTPUT = "./projects/Washington/"
-LABEL_COL = "Washington"
+CSV_FILE = "projects/bordeaux_1500_all/FeatherResult.csv"
+OUTPUT = "./projects/bordeaux_1500_all/"
+LABEL_COL = "bordeaux_1500_all"
 ORDER=5
 THETA_MAX=2.5
-DISTANCE = 2000
+DISTANCE = 1500
 
 #Helper functions
 """splits dataframe into two parts, devied by the median of the mean."""
@@ -53,7 +53,7 @@ def High_low_plotter(order, mean, std, ax, theta, color): #isHigh,
     print("plotting")
     return ax
 
-features = ["outdoor_activities","learning","supplies","eating","moving","cultural_activities","physical_exercise","services","healthcare","financial"]
+features = ["outdoor_activities","learning","supplies","eating","moving","cultural_activities","physical_exercise","services","healthcare","financial","all_pois"]
 color_arr = ["red", "blue", "green", "orange", "black", "yellow", "grey", "brown", "purple", "pink"]
 
 #Drop imaginary columns
