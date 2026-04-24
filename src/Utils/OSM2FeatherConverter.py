@@ -321,6 +321,11 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
     featurez.index = featurez.index.map(featherIDtoOSMID)
     featurez.sort_index(inplace=True)
     featurez.index.name = None
+    # EVIL code below, NOTE: this is meant to be used with a 10m distance in nearest_pois!
+    # it should be noted that these fucked upo and evil functions replaces all instances of FALSE with the given value.
+    #featurezz = featurez.where(featurez < 10,0) # all cells with no features within 10m are 10! so we replace em with zeroes
+    #featurezz= featurez.where(featurez < 1,1) #replaces everything not below 1 with 1, now we have our evil and fucked up feature matrix
+    #featurezz.to_csv("./"+ args.output + "/" + args.title + "/featuresEvil.csv", index=False)
     featurez.to_csv("./"+ args.output + "/" + args.title + "/featuresteis.csv", index=False)
 
     return n
