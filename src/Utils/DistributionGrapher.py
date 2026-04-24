@@ -61,8 +61,6 @@ features = ["outdoor_activities","learning","supplies","eating","moving","cultur
 color_arr = ["red", "blue", "green", "orange", "teal", "yellow", "grey", "brown", "purple", "pink", "black"]
 levels = ["High", "Medium-High", "Medium", "Medium-low", "Low"]
 
-#Drop imaginary columns
-
 data = pd.read_csv(CSV_FILE)
 data = data.drop(columns =['id'])
 
@@ -87,28 +85,22 @@ def mean_for_single_feature_graph(feature):
     
     while incrementor < DISTANCE:
         incrementor += dist5
-        #print(incrementor)
 
         tmp = data_learning[data_learning[feature] <= incrementor]
         tmp = tmp.sort_values(by=[feature])
         df_list.append(tmp)
     
         data_learning = data_learning[data_learning[feature] > incrementor]
-        #print(f"data_learning:______  {data_learning}")
 
-
-    #print(f"final: {df_list}")
-    #print(len(df_list))
     _, axes = plt.subplots(5 ,1, figsize=(14, 5 * ORDER))
     count = 0
-    for lst in df_list:
-        #print(lst)
-        
-        lst = lst.drop(columns=[feature])
-        part_mean = lst.mean(axis=1)
+    for df in df_list:
+
+        df = df.drop(columns=[feature])
+        part_mean = df.mean(axis=1)
 
         theta = np.linspace(0, THETA_MAX, len(part_mean))
-        std = lst.std(axis=1)
+        std = df.std(axis=1)
 
         axes[count].plot(theta, part_mean, color=color_arr[count], label=f"mean for {feature} ")
         axes[count].fill_between(theta, part_mean - std, part_mean + std, color=color_arr[count], alpha=0.4)
@@ -148,8 +140,8 @@ def Split_on_order(feature, eval_points=10):
         sorted_data = data_subset.sort_values(by=[feature])
         sorted_data = sorted_data.drop(columns=[feature])
 
-        part_mean = sorted_data.mean(axis=1) #NOTE: was 1
-        std = sorted_data.std(axis=1) #NOTE: was 1
+        part_mean = sorted_data.mean(axis=1) 
+        std = sorted_data.std(axis=1) 
 
         theta = np.linspace(0, THETA_MAX, len(part_mean))
         theta_smooth, re_smooth = interpolate_dense(theta, part_mean, factor=100)
@@ -166,9 +158,9 @@ def Split_on_order(feature, eval_points=10):
     
     plt.tight_layout()
     plt.savefig(OUTPUT + f"woop{feature}OverOrders")
-"""
+
 for feature in features:
-    Split_on_order(feature) """
+    Split_on_order(feature)
 
 def percentage_split_graph():
     feat = pd.read_csv("./projects/" + LABEL_COL + "/featuresteis.csv")
