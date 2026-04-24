@@ -224,7 +224,7 @@ def teis_stuff_order(feature, eval_points=10):
 for feature in features: 
     teis_stuff_order(feature=feature)
 """
-def another_One(feature, eval_points=10):
+def Split_on_order(feature, eval_points=10):
     cool = pd.read_csv("./projects/" + LABEL_COL + "/featuresteis.csv")
 
     data_feature = data.filter(like=feature)
@@ -260,7 +260,7 @@ def another_One(feature, eval_points=10):
     plt.savefig(OUTPUT + f"woop{feature}OverOrders")
 
 for feature in features:
-    another_One(feature)
+    Split_on_order(feature)
 
 def percentage_stuff():
     feat = pd.read_csv("./projects/" + LABEL_COL + "/featuresteis.csv")
