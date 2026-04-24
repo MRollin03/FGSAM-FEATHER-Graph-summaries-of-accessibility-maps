@@ -143,11 +143,11 @@ def Convert(args):
             figsize=(36,34)
         )
     
-        vmin = nearest_pois["pois"].min()
+        vmin = nearest_pois["all_pois"].min()
         vmax=args.distance
         nearest_pois.plot(
             ax=ax,
-            column="pois",
+            column="all_pois",
             cmap="plasma",
             markersize=3.5,
             alpha=0.8,
@@ -255,7 +255,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
 
     distance = args.distance   # max search distance (metres)
     #dist = 500        # threshold for counting a POI as "accessible"
-    n["pois"] = 0
+    n["all_pois"] = 0
 
     frames = []
     if args.solo == None:
@@ -287,7 +287,7 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
                 n[cat] = nearest_pois[cat]
             else:
                 n[cat] = nearest_pois[cat]
-                n["pois"] += nearest_pois[cat]
+                n["all_pois"] += nearest_pois[cat]
             
             frames.append(nearest_pois)
     else:
@@ -314,12 +314,20 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
                 frames.append(nearest_pois)
     if not frames:
         raise RuntimeError("No POI categories had any data — feature CSV not written.")
+    n["all_pois"] = n["all_pois"].truediv(len(frames))
+    if args.solo == None:
+        frames.append(n["all_pois"])    
     featurez = pd.concat(frames, axis=1, sort=False)
     featurez.index = featurez.index.map(featherIDtoOSMID)
     featurez.sort_index(inplace=True)
     featurez.index.name = None
+    # EVIL code below, NOTE: this is meant to be used with a 10m distance in nearest_pois!
+    # it should be noted that these fucked upo and evil functions replaces all instances of FALSE with the given value.
+    #featurezz = featurez.where(featurez < 10,0) # all cells with no features within 10m are 10! so we replace em with zeroes
+    #featurezz= featurez.where(featurez < 1,1) #replaces everything not below 1 with 1, now we have our evil and fucked up feature matrix
+    #featurezz.to_csv("./"+ args.output + "/" + args.title + "/featuresEvil.csv", index=False)
     featurez.to_csv("./"+ args.output + "/" + args.title + "/featuresteis.csv", index=False)
-    n["pois"] = n["pois"].truediv(len(frames))
+
     return n
 
 # ---------------------------------------------------------------------------

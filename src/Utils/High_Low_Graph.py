@@ -6,12 +6,12 @@ from scipy.signal import savgol_filter
 from scipy.interpolate import CubicSpline
 
 
-CSV_FILE = "projects\Washington\FeatherResult.csv"
-OUTPUT = "./projects/Washington/"
-LABEL_COL = "Washington"
+CSV_FILE = "projects/bordeaux_1500_all/FeatherResult.csv"
+OUTPUT = "./projects/bordeaux_1500_all/"
+LABEL_COL = "bordeaux_1500_all"
 ORDER=5
 THETA_MAX=2.5
-DISTANCE = 2000
+DISTANCE = 1500
 
 #Helper functions
 """splits dataframe into two parts, devied by the median of the mean."""
