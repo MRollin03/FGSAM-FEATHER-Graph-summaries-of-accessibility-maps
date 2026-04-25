@@ -1,61 +1,15 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy.ndimage import gaussian_filter1d
-from scipy.signal import savgol_filter
 from scipy.interpolate import CubicSpline
 
 
-CSV_FILE = "projects/Philadelphia/FeatherResult.csv"
-OUTPUT = "./projects/Philadelphia/"
-LABEL_COL = "Philadelphia"
+CSV_FILE = "projects/Daegu/FeatherResult.csv"
+OUTPUT = "./projects/Daegu/"
+LABEL_COL = "Daegu"
 ORDER=5
 THETA_MAX=2.5
-DISTANCE = 1500
-
-#Helper functions
-"""splits dataframe into two parts, devied by the median of the mean."""
-def split_dataframe(dataframe):
-    decider = np.median(dataframe.mean(axis=0))
-
-    dataframe["is_high_median"] = dataframe.mean(axis=1) > decider #Add this temporary column
-    #print(dataframe.mean(axis=1))
-    #print(dataframe["is_high_median"])
-
-    df_high = dataframe.loc[dataframe["is_high_median"] == True] #goes to higher if higher than median
-    df_low  = dataframe.loc[dataframe["is_high_median"] == False] #same as above but for lower
-
-    #Remove it again, dont know if this can be made better
-    df_high = df_high.drop(columns=["is_high_median"], errors='ignore') 
-    df_low = df_low.drop(columns=["is_high_median"], errors='ignore')
-
-    return df_high, df_low
-
-"""Returns the mean of df_high and df_low"""
-def get_mean(df_high, df_low):
-    return df_high.mean(axis=0), df_low.mean(axis=0) 
-
-"""Returns the standard deviations of df_high and df_low"""
-def get_std(df_high, df_low):
-    return df_high.std(axis=0), df_low.std(axis=0)
-
-"""Uniform plotting function, changes depending on if the graph is higher or the graph is lower"""
-def High_low_plotter(order, mean, std, ax, theta, color): #isHigh,
-    #NOTE: removed median, since very little variation, can be added again, if demmed necessary
-    #if(isHigh):
-    ax.plot(theta, mean, color=color, label=f"High order {order}")
-    ax.fill_between(theta, mean - std, mean + std, color=color, alpha=0.4)
-    """else:
-        ax.plot(theta, mean, color=color, label=f"Low order {order}")
-        ax.fill_between(theta, mean - std, mean + std, color=color, alpha=0.4)"""
-
-    ax.set_xlim(0, THETA_MAX)
-    ax.set_xlabel(r'Evaluation point: $\theta$')     
-    ax.set_ylabel("CF Value")
-    ax.set_ylim(-1.1,1.1) #adding a bit of padding
-
-    print("plotting")
-    return ax
+DISTANCE = 2000
 
 features = ["outdoor_activities","learning","supplies","eating","moving","cultural_activities","physical_exercise","services","healthcare","financial","all_pois"]
 color_arr = ["red", "blue", "green", "orange", "teal", "yellow", "grey", "brown", "purple", "pink", "black"]
@@ -63,8 +17,6 @@ levels = ["High", "Medium-High", "Medium", "Medium-low", "Low"]
 
 data = pd.read_csv(CSV_FILE)
 feat_csv = pd.read_csv("./projects/" + LABEL_COL + "/featuresteis.csv")
-
-
 
 data = data.drop(columns =['id'])
 
@@ -75,8 +27,9 @@ for col in data.columns:
         imaginary.append(col)
 data = data.drop(columns=imaginary)
 
+print("Making feature level split graphs")
 def mean_for_single_feature_graph(feature):
-    data_learning = pd.concat([data, feat_csv], ignore_index=False, axis=1)
+    data_learning = pd.concat([data.reset_index(drop=True), feat_csv.reset_index(drop=True)],axis=1)
 
     dist5 = (DISTANCE / 5) #make the increments flex with distance
     incrementor = 0 
@@ -94,16 +47,15 @@ def mean_for_single_feature_graph(feature):
     
         data_learning = data_learning[data_learning[feature] > incrementor]
 
-    _, axes = plt.subplots(5 ,1, figsize=(14, 5 * ORDER))
+    _, axes = plt.subplots(5 ,1, figsize=(10, 3 * ORDER))
     count = 0
     for df in df_list:
-
         df = df.drop(columns=[feature])
         part_mean = df.mean(axis=1)
 
         theta = np.linspace(0, THETA_MAX, len(part_mean))
         std = df.std(axis=1)
-
+        axes[count].set_title(f"Mean distribution of {feature} - Level {levels[count]} - {LABEL_COL}")
         axes[count].plot(theta, part_mean, color=color_arr[count], label=f"mean for {feature} ")
         axes[count].fill_between(theta, part_mean - std, part_mean + std, color=color_arr[count], alpha=0.4)
         axes[count].legend()
@@ -117,15 +69,15 @@ def mean_for_single_feature_graph(feature):
     plt.tight_layout()
     plt.savefig(OUTPUT + f"{feature}meanwave")
         
-for feature in features:
-    mean_for_single_feature_graph(feature=feature)
+#for feature in features:
+    #mean_for_single_feature_graph(feature=feature)
 
-
-def interpolate_dense(theta, y, factor=2):
+print("Making feature order split graphs")
+def interpolate_dense(theta, y, factor=100):
     theta_dense = np.linspace(theta[0], theta[-1], len(theta) * factor)
     cs = CubicSpline(theta, y)
     return theta_dense, cs(theta_dense)
-
+""" NOTE: This does not work due to how the FEATHER Data is cunstrocted
 def Split_on_order(feature, eval_points=10):
     data_feature = data.filter(like=feature)
 
@@ -161,10 +113,10 @@ def Split_on_order(feature, eval_points=10):
 
 for feature in features:
     Split_on_order(feature)
-
+"""
 def percentage_split_graph():
     new_data = pd.concat([data, feat_csv], ignore_index=False, axis=1)
-    new_data['mean'] = new_data.mean(axis=1)
+    new_data['mean'] = feat_csv.mean(axis=1)
     sorted_data = new_data.sort_values('mean')
 
     long = sorted_data.shape[0]
@@ -173,8 +125,8 @@ def percentage_split_graph():
 
     sorted_data = sorted_data.drop(columns=['mean'])
 
-    df_bottom = sorted_data.head(int(long * 0.1))
-    df_high = sorted_data.tail(int(long * 0.1))
+    df_bottom = sorted_data.head(int(long * 0.25))
+    df_high = sorted_data.tail(int(long * 0.25))
 
     mean_high = df_high.mean(axis=1).values   
     mean_low  = df_bottom.mean(axis=1).values
@@ -190,26 +142,27 @@ def percentage_split_graph():
     
     _, ax = plt.subplots(figsize=(18, 12))
             
-    ax.plot(theta_smooth, high_smooth, color='blue', label='Top 10%')
+    ax.plot(theta_smooth, high_smooth, color='blue', label='Top 25%')
     ax.fill_between(theta_smooth, high_smooth - high_std_smooth, high_smooth + high_std_smooth, color='blue', alpha=0.4)
     ax.set_xlim(0, THETA_MAX)
     ax.set_xlabel(r'Evaluation point: $\theta$')     
     ax.set_ylabel("CF Value")
     ax.set_ylim(-1.1,1.1) 
-    ax.set_title(f"mean distribution for 10% highest and lowest - {LABEL_COL}")
+    ax.set_title(f"mean distribution for 25% highest and lowest scoring nodes - {LABEL_COL}")
 
-    ax.plot(theta_smooth, low_smooth, color='red', label='Bottom 10%')
+    ax.plot(theta_smooth, low_smooth, color='red', label='Bottom 25%')
     ax.fill_between(theta_smooth, low_smooth - std_low_smooth, low_smooth + std_low_smooth, color='red', alpha=0.4)
     ax.legend()
 
     plt.tight_layout()
     plt.savefig(OUTPUT + f"percentage")
 
-percentage_split_graph()
+print("Making percentage graphs")
+#percentage_split_graph()
 
 def percentage_split_graph_split():
     new_data = pd.concat([data, feat_csv], ignore_index=False, axis=1)
-    new_data['mean'] = new_data.mean(axis=1)
+    new_data['mean'] = feat_csv.mean(axis=1)
     sorted_data = new_data.sort_values('mean')
 
     long = sorted_data.shape[0]
@@ -218,8 +171,8 @@ def percentage_split_graph_split():
 
     sorted_data = sorted_data.drop(columns=['mean'])
 
-    df_bottom = sorted_data.head(int(long * 0.1))
-    df_high = sorted_data.tail(int(long * 0.1))
+    df_bottom = sorted_data.head(int(long * 0.25))
+    df_high = sorted_data.tail(int(long * 0.25))
 
     mean_high = df_high.mean(axis=1).values   
     mean_low  = df_bottom.mean(axis=1).values
@@ -235,26 +188,26 @@ def percentage_split_graph_split():
     
     _, ax = plt.subplots(2,figsize=(18, 12))
             
-    ax[0].plot(theta_smooth, high_smooth, color='blue', label='Top 10%')
+    ax[0].plot(theta_smooth, high_smooth, color='blue', label='Top 25%')
     ax[0].fill_between(theta_smooth, high_smooth - high_std_smooth, high_smooth + high_std_smooth, color='blue', alpha=0.4)
     ax[0].set_xlim(0, THETA_MAX)
     ax[0].set_xlabel(r'Evaluation point: $\theta$')     
     ax[0].set_ylabel("CF Value")
     ax[0].set_ylim(-1.1,1.1) 
-    ax[0].set_title(f"mean distribution for 10% highest - {LABEL_COL}")
+    ax[0].set_title(f"mean distribution for 25% highest scoring nodes - {LABEL_COL}")
     ax[0].legend()
 
-    ax[1].plot(theta_smooth, low_smooth, color='red', label='Bottom 10%')
+    ax[1].plot(theta_smooth, low_smooth, color='red', label='Bottom 25%')
     ax[1].fill_between(theta_smooth, low_smooth - std_low_smooth, low_smooth + std_low_smooth, color='red', alpha=0.4)
     ax[1].set_xlim(0, THETA_MAX)
     ax[1].set_xlabel(r'Evaluation point: $\theta$')     
     ax[1].set_ylabel("CF Value")
     ax[1].set_ylim(-1.1,1.1) 
-    ax[1].set_title(f"mean distribution for 10% lowest - {LABEL_COL}")
+    ax[1].set_title(f"mean distribution for 25% lowest scoring nodes - {LABEL_COL}")
     ax[1].legend()
 
     plt.tight_layout()
     plt.savefig(OUTPUT + f"percentage_split")
 
-percentage_split_graph_split()
+#percentage_split_graph_split()
 
