@@ -4,12 +4,12 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 
 
-CSV_FILE = "projects/Daegu/FeatherResult.csv"
-OUTPUT = "./projects/Daegu/"
-LABEL_COL = "Daegu"
+CSV_FILE = "projects/daegu_20000_all/FeatherResult.csv"
+OUTPUT = "./projects/daegu_20000_all/"
+LABEL_COL = "daegu_20000_all"
 ORDER=5
 THETA_MAX=2.5
-DISTANCE = 2000
+DISTANCE = 3000
 
 features = ["outdoor_activities","learning","supplies","eating","moving","cultural_activities","physical_exercise","services","healthcare","financial","all_pois"]
 color_arr = ["red", "blue", "green", "orange", "teal", "yellow", "grey", "brown", "purple", "pink", "black"]
@@ -26,7 +26,45 @@ for col in data.columns:
     if "img" in col and col not in imaginary:
         imaginary.append(col)
 data = data.drop(columns=imaginary)
+def Order_graph(feature):
+    data_learning = pd.concat([data.reset_index(drop=True), feat_csv.reset_index(drop=True)],axis=1)
+    tmp_lst = [] #make a list containing all "levels" of the order
 
+    data_learning = data_learning.filter(like=feature)
+    eval_points = 10 #THIS IS VERY IMPORTANT TO HAVE CORRRRRECTTTTT
+    dist = 20000 #this is for the plotting, use the distance pandana was fed!
+    for o in range(ORDER):
+
+        start = int((o * eval_points))
+        end = int(((o+1) *eval_points))
+
+        data_subset = data_learning.iloc[:,start:end]
+        data_subset = pd.concat([data_subset, feat_csv.filter(like=feature)], ignore_index=False, axis=1)
+        data_subset = data_subset.sort_values(by=[feature])
+        data_subset.drop(columns=[feature])
+        tmp_lst.append(data_subset)
+    _, axes = plt.subplots(5 ,1, figsize=(10, 3 * ORDER))
+    count = 0
+    for df in tmp_lst:
+        df = df.drop(columns=[feature])
+        part_mean = df.mean(axis=1)
+
+        theta = np.linspace(0, dist, len(part_mean))
+        std = df.std(axis=1)
+        axes[count].set_title(f"Mean distribution of {feature} - order {count} - {LABEL_COL}")
+        axes[count].plot(theta, part_mean, color=color_arr[count], label=f"mean for {feature} evaluation points ")
+        axes[count].fill_between(theta, part_mean - std, part_mean + std, color=color_arr[count], alpha=0.4)
+        axes[count].legend()
+
+        axes[count].set_xlim(0, dist)
+        axes[count].set_xlabel(f"Distance: {dist}")     
+        axes[count].set_ylabel("CF Value")
+        axes[count].set_ylim(-1.1,1.1) 
+        count +=1
+    
+    plt.tight_layout()
+    plt.savefig(OUTPUT + f"{feature}meanwavesikff")
+    
 print("Making feature level split graphs")
 def mean_for_single_feature_graph(feature):
     data_learning = pd.concat([data.reset_index(drop=True), feat_csv.reset_index(drop=True)],axis=1)
@@ -71,7 +109,7 @@ def mean_for_single_feature_graph(feature):
         
 #for feature in features:
     #mean_for_single_feature_graph(feature=feature)
-
+    #Order_graph(feature=feature)
 print("Making feature order split graphs")
 def interpolate_dense(theta, y, factor=100):
     theta_dense = np.linspace(theta[0], theta[-1], len(theta) * factor)

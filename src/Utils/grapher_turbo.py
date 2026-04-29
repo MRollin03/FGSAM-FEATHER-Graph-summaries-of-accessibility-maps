@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 
 # this is my BALLER turbo grapher, the intent is to graph and quickly show a statistical display of the node distribution within a given accesiblilty csv.
 
-CSV_FILE = "projects/bordeaux_10k_all/featuresteis.csv"
-OUTPUT = "./projects/bordeaux_10k_all/"
-LABEL_COL = "bordeaux_10k_all"
-DISTANCE = 2000  #this is a surprize tool that will help us later.
+CSV_FILE = "projects/daegu_20000_all/featuresteis.csv"
+OUTPUT = "./projects/daegu_20000_all/"
+LABEL_COL = "daegu_20000_all"
+DISTANCE = 2000  #this is a surprize tool that will help us later. SHOULKD BE RENAMED TO SCORE_LIMIT
 data = pd.read_csv(CSV_FILE)
 ## We read the csv file here, NOTE: this is not the post feather csv, but the pandana output.
 ### the initial version (this one) will only work with single feature .csv files. Later we will insert a function that allows multi col support.
@@ -25,7 +25,7 @@ data = data.drop(columns=['id'], errors='ignore') #this does nothing :P
 
 length = data.shape[0] ## get the length of our dataframe, we will need this for percentage calculations
 feature_names = list(data.columns)
-label_list = ("High", "Medium-High", "Medium", "Medium-Low", "Low") # for the graph labels
+label_list = (" ", " ", " ", " ", " ") # for the graph labels, i dont want graph labels
 feature_dict = {
 } # we will populate this dict with 5 percentage values for each feature in a loop i haven't yet made
 print("\n") # give homie a lill space.
@@ -84,10 +84,12 @@ for blabel, valuez in feature_dict.items():
 
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Percentage')
-ax.set_title('Feature Distribution')
+ax.set_title('Feature Distribution sorted by score and clustered by category')
 ax.set_xticks((x + width)*11, label_list)
-ax.legend(loc='upper left', ncols=5)
-ax.set_ylim(0, 100)
+ax.set_xlabel('each category is sorted by order: High, Medium-High, Medium, Medium-Low, Low, each representing a 20% cutoff of score limit')
+ax.legend(loc='upper left', ncols=6)
+ax.set_ylim(0, 115)
+
 
 
 plt.show()
