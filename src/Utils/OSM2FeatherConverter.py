@@ -49,6 +49,7 @@ import pyproj
 ox.settings.use_cache = True
 ox.settings.log_console = True
 ox.settings.timeout = 600
+VMAX=2500 #Maximum edge coloring diff
 
 # ---------------------------------------------------------------------------
 # POI tag definitions
@@ -84,7 +85,7 @@ TAGS = {
 }
 
 # ---------------------------------------------------------------------------
-# Category definitions (used by ComputeFeatures)
+# Category definitions
 # ---------------------------------------------------------------------------
 
 def build_categories(all_pois):
@@ -145,19 +146,19 @@ def build_categories(all_pois):
 
 
 # ---------------------------------------------------------------------------
-# Get area size
+# Area helper
 # ---------------------------------------------------------------------------
 
 def get_bbox_area_km2(min_lon, min_lat, max_lon, max_lat):
+    """Return the area of a lon/lat bounding box in km² via UTM projection."""
     geom = box(min_lon, min_lat, max_lon, max_lat)
-
     wgs84 = pyproj.CRS("EPSG:4326")
-    utm = pyproj.CRS("EPSG:32633")
-
+    utm   = pyproj.CRS("EPSG:32633")
     project = pyproj.Transformer.from_crs(wgs84, utm, always_xy=True).transform
     geom_projected = transform(project, geom)
-
     return geom_projected.area / 1_000_000
+
+
 # ---------------------------------------------------------------------------
 # ID mapping
 # ---------------------------------------------------------------------------
@@ -192,7 +193,6 @@ def osm_edges_to_feather(edges, id_map, output_path):
         raise ValueError("id_map is empty — no nodes found in graph.")
     if edges.empty:
         raise ValueError("Edge list is empty.")
-
     converted = edges[["u", "v"]].replace(id_map)
     converted.to_csv(output_path, index=False)
     print(f"[edges] Wrote {len(converted)} edges → {output_path}")
@@ -203,8 +203,17 @@ def osm_edges_to_feather(edges, id_map, output_path):
 # ---------------------------------------------------------------------------
 
 def compute_features(network, n, id_map, all_pois, distance, solo, csvdebug, out_csv):
+    """
+    Compute pandana accessibility features per category and write feature CSV.
+
+    Returns the node GeoDataFrame *n* augmented with per-category columns
+    and a "pois" summary column.
+    """
     categories = build_categories(all_pois)
-    n["pois"] = 0
+
+    # Initialise summary as a float Series aligned to the node index
+    n["pois"] = pd.Series(0.0, index=n.index)
+
     frames = []
 
     if solo:
@@ -212,35 +221,36 @@ def compute_features(network, n, id_map, all_pois, distance, solo, csvdebug, out
         cat_data = categories.get(solo)
         if cat_data is None or cat_data.empty:
             raise RuntimeError(f"No POI data found for solo category {solo!r}.")
-        
+
         network.set_pois(
             category=solo,
             maxdist=distance,
             maxitems=1000,
-            x_col=data.geometry.x,
-            y_col=data.geometry.y,
+            x_col=cat_data.geometry.x,   # fix: was `data` (NameError)
+            y_col=cat_data.geometry.y,
         )
         nearest = network.nearest_pois(distance=distance, category=solo, num_pois=20)
-        
-        # Beregn gennemsnit
         nearest[solo] = nearest.sum(axis=1).truediv(20).round(3)
-        
-        # NYT: Nulstil noder der er POIs i denne kategori
-        poi_node_ids = network.get_node_ids(data.geometry.x, data.geometry.y)
-        nearest.loc[poi_node_ids, solo] = 0
 
-        if cat == csvdebug:
-            nearest[cat] = 0
-        
-        n[cat] = nearest[cat]
-        n["pois"] += nearest[cat]
-        frames.append(nearest[[cat]])
+        # Nodes that ARE a POI of this category get distance 0
+        poi_node_ids = network.get_node_ids(cat_data.geometry.x, cat_data.geometry.y)
+        nearest.loc[poi_node_ids, solo] = 0.0
+
+        # csvdebug is incompatible with --solo (enforced by CLI), but guard anyway
+        if solo == csvdebug:
+            nearest[solo] = 0.0
+
+        n[solo]    = nearest[solo]
+        n["pois"] += nearest[solo]
+        frames.append(nearest[[solo]])
+
     else:
         # --- all-categories path -----------------------------------------
         for cat, data in categories.items():
             if data.empty:
+                print(f"[features] Skipping empty category: {cat}")
                 continue
-            
+
             network.set_pois(
                 category=cat,
                 maxdist=distance,
@@ -249,32 +259,56 @@ def compute_features(network, n, id_map, all_pois, distance, solo, csvdebug, out
                 y_col=data.geometry.y,
             )
             nearest = network.nearest_pois(distance=distance, category=cat, num_pois=20)
-            
-            # Beregn gennemsnit
             nearest[cat] = nearest.sum(axis=1).truediv(20).round(3)
-            
-            # NYT: Nulstil noder der er POIs i denne kategori
+
+            # Nodes that ARE a POI of this category get distance 0
             poi_node_ids = network.get_node_ids(data.geometry.x, data.geometry.y)
-            nearest.loc[poi_node_ids, cat] = 0
+            nearest.loc[poi_node_ids, cat] = 0.0
 
             if cat == csvdebug:
-                nearest[cat] = 0
-            
-            n[cat] = nearest[cat]
+                nearest[cat] = 0.0
+
+            n[cat]     = nearest[cat]
             n["pois"] += nearest[cat]
             frames.append(nearest[[cat]])
 
-    # ... resten af din eksisterende logik (concat, map id_map, save csv) ...
+    if not frames:
+        raise RuntimeError("No POI categories had any data — feature CSV not written.")
+
+    # Average the "pois" summary across however many categories had data
+    n["pois"] = n["pois"].truediv(len(frames))
+
     featurez = pd.concat(frames, axis=1, sort=False)
-    featurez.index = featurez.index.map(id_map)
-    featurez.to_csv(out_csv, index=False)
+
+    # Re-index from pandana node IDs → OSM IDs
+    # id_map is {osm_id: feather_id}; invert it to map feather→osm
+    feather_to_osm = {v: k for k, v in id_map.items()}
+    featurez.index = featurez.index.map(feather_to_osm)
+    featurez.sort_index(inplace=True)
+    featurez.index.name = None
+
+    featurez.to_csv(out_csv)
+    print(f"[features] Saved feature CSV → {out_csv}")
 
     lowestAndHighest(featurez, id_map)
-    
-    if not solo:
-        n["pois"] = n["pois"].truediv(len(frames))
+
     return n
 
+
+# ---------------------------------------------------------------------------
+# Diagnostics
+# ---------------------------------------------------------------------------
+
+def lowestAndHighest(featurez, id_map):
+    """Print the OSM nodes with best and worst overall accessibility scores."""
+    row_sums = featurez.sum(axis=1)
+    min_id   = row_sums.idxmin()
+    max_id   = row_sums.idxmax()
+
+    print("--- Tilgængeligheds-ekstremer ---")
+    print(f"Bedst (lavest dist): osmID: {min_id} | Score: {row_sums.min():.2f}")
+    print(f"Værst (højest dist): osmID: {max_id} | Score: {row_sums.max():.2f}")
+    print("--------------------------------")
 
 
 # ---------------------------------------------------------------------------
@@ -329,20 +363,21 @@ def convert(args):
       3. Fetch POIs from Overpass
       4. Build OSM→Feather ID mapping
       5. Write FeatherEdges.csv
-      6. Compute per-category accessibility features
-      7. Write feature CSV
+      6. Compute per-category accessibility features + write feature CSV
+      7. Write graph info file
       8. Save heatmap PNG
     """
     if args.title is None:
         raise ValueError("--title is required.")
 
-    project_dir = os.path.join(args.output, args.title)
+    project_dir  = os.path.join(args.output, args.title)
     os.makedirs(project_dir, exist_ok=True)
 
     graphml_path = os.path.join(project_dir, f"{args.title}.graphml")
     pandana_path = os.path.join(project_dir, f"{args.title}.h5")
     edges_csv    = os.path.join(project_dir, "FeatherEdges.csv")
     features_csv = os.path.join(project_dir, "featuresteis.csv")
+    info_path    = os.path.join(project_dir, "graph_info.txt")
 
     # ------------------------------------------------------------------
     # 1. Graph
@@ -390,30 +425,6 @@ def convert(args):
     all_pois["geometry"] = all_pois.centroid
     print(f"[pois] {len(all_pois)} POIs fetched.")
 
-    info_path = os.path.join(project_dir, "graph_info.txt")
-
-    num_nodes = len(n)
-    num_pois = len(all_pois)
-
-    if args.type == "BBOX":
-        west, south, east, north = args.bbox
-        area_km2 = get_bbox_area_km2(west, south, east, north)
-    else:
-        area_km2 = all_pois.unary_union.convex_hull.area / 1_000_000
-
-    node_density = num_nodes / area_km2 if area_km2 > 0 else 0
-    poi_density = num_pois / area_km2 if area_km2 > 0 else 0
-
-    with open(info_path, "w", encoding="utf-8") as f:
-        f.write(f"Graph Information for {args.title}\n")
-        f.write(f"===============================\n")
-        f.write(f"Number of nodes: {num_nodes}\n")
-        f.write(f"Number of POIs: {num_pois}\n")
-        f.write(f"Area (km^2): {area_km2:.3f}\n")
-        f.write(f"Node density (nodes/km^2): {node_density:.3f}\n")
-        f.write(f"POI density (POIs/km^2): {poi_density:.3f}\n")
-
-    print(f"[info] Saved graph information → {info_path}")
     # ------------------------------------------------------------------
     # 4. ID mapping
     # ------------------------------------------------------------------
@@ -426,7 +437,7 @@ def convert(args):
     osm_edges_to_feather(reduced_edges, id_map, edges_csv)
 
     # ------------------------------------------------------------------
-    # 6 & 7. Features
+    # 6. Features
     # ------------------------------------------------------------------
     n = compute_features(
         network=network,
@@ -438,13 +449,12 @@ def convert(args):
         csvdebug=args.csvdebug,
         out_csv=features_csv,
     )
-    # ------------------------------------------------------------------
-    # 8. Graph information files
-    # ------------------------------------------------------------------
-    info_path = os.path.join(project_dir, "graph_info.txt")
 
+    # ------------------------------------------------------------------
+    # 7. Graph info  (written once, after features so node count is final)
+    # ------------------------------------------------------------------
     num_nodes = len(n)
-    num_pois = len(all_pois)
+    num_pois  = len(all_pois)
 
     if args.type == "BBOX":
         west, south, east, north = args.bbox
@@ -453,7 +463,7 @@ def convert(args):
         area_km2 = all_pois.unary_union.convex_hull.area / 1_000_000
 
     node_density = num_nodes / area_km2 if area_km2 > 0 else 0
-    poi_density = num_pois / area_km2 if area_km2 > 0 else 0
+    poi_density  = num_pois  / area_km2 if area_km2 > 0 else 0
 
     with open(info_path, "w", encoding="utf-8") as f:
         f.write(f"Graph Information for {args.title}\n")
@@ -465,8 +475,9 @@ def convert(args):
         f.write(f"POI density (POIs/km^2): {poi_density:.3f}\n")
 
     print(f"[info] Saved graph information → {info_path}")
+
     # ------------------------------------------------------------------
-    # 9. Heatmap
+    # 8. Heatmap
     # ------------------------------------------------------------------
     if args.solo:
         column   = args.solo
@@ -477,30 +488,10 @@ def convert(args):
         img_path = os.path.join(project_dir, "all_pois.png")
         label    = f"Average distance to any POI ≤ {args.distance} m"
 
-    save_heatmap(G, n, column=column, vmax=args.distance, label=label, out_path=img_path)
+    save_heatmap(G, n, column=column, vmax=VMAX, label=label, out_path=img_path)
 
     print("[done] All outputs written to:", project_dir)
 
-def lowestAndHighest(featurez, id_map):
-    
-    reverse_map = {v: k for k, v in id_map.items()}
-
-    # Beregn summen af distancer for hver node
-    row_sums = featurez.sum(axis=1)
-
-    min_id = row_sums.idxmin()
-    max_id = row_sums.idxmax()
-
-    min_score = row_sums.min()
-    max_score = row_sums.max()
-
-    print("--- Tilgængeligheds-ekstremer ---")
-    # Laveste score = Kortest gennemsnitsafstand (Bedst tilgængelighed)
-    print(f"Bedst (lavest dist): ID: {min_id} | osmID: {reverse_map.get(min_id, 'N/A')} | Score: {min_score:.2f}")
-    
-    # Højeste score = Længst gennemsnitsafstand (Dårligst tilgængelighed)
-    print(f"Værst (højest dist): ID: {max_id} | osmID: {reverse_map.get(max_id, 'N/A')} | Score: {max_score:.2f}")
-    print("--------------------------------")
 
 # ---------------------------------------------------------------------------
 # CLI

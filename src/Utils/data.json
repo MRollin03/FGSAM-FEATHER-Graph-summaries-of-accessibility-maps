@@ -60,26 +60,7 @@
     "name": "Greater Melbourne, Australia"
   },
   {
-    "name": "Copenhagen, Denmark",
-    "multi":{
-      [
-        "Copenhagen Municipality, Denmark",
-        "Frederiksberg Municipality, Denmark", 
-        "Tårnby Municipality, Denmark", 
-        "Dragør Municipality, Denmark",
-        "Rødovre Municipality, Denmark", 
-        "Hvidovre Municipality, Denmark",
-        "Gladsaxe Municipality, Denmark",
-        "Gentofte Municipality, Denmark",
-        "Glostrup Municipality, Denmark",
-        "Albertslund Municipality, Denmark",
-        "Høje-Taastrup Municipality, Denmark",
-        "Ishøj Municipality, Denmark",
-        "Ballerup Municipality, Denmark",
-        "Herlev Municipality, Denmark",
-        "Lyngby-Taarbæk Municipality, Denmark"
-            ]
-    }
+    "name": "Copenhagen, Denmark"
   },
   {
     "name": "Daegu, South Korea"

@@ -46,13 +46,15 @@ for item in "${locations[@]:1}"; do
 
       # 1. Konverter OSM data
       python OSM2FeatherConverter.py --type BBOX --bbox "$west" "$south" "$east" "$north" \
-          --title "$name" --output "$output" --distance 1000
+          --title "$name" --output "$output" --distance 20000
       else
 
-      python OSM2FeatherConverter.py --type PLACE --place "$name" --title "$name" --output "$output" --distance 1000
+      python OSM2FeatherConverter.py --type PLACE --place "$name" --title "$name" --output "$output" --distance 20000
 
     fi
-    
+
+    python grapher_turbo.py --input "${output}/${name}"
+
     # 2. Kør Feather analyse
     python FEATHER/src/main.py \
         --graph-input "${output}/${name}/FeatherEdges.csv" \
