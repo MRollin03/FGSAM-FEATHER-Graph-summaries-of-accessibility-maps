@@ -10,7 +10,9 @@ LABEL_COL = "daegu_20000_all"
 ORDER=5
 THETA_MAX=2.5
 DISTANCE = 3000
-
+# TIL Ordered graph
+eval_points = 25 #THIS IS VERY IMPORTANT TO HAVE CORRRRRECTTTTT
+dist = 20000 #this is for the plotting order graf, use the distance pandana was fed!
 features = ["outdoor_activities","learning","supplies","eating","moving","cultural_activities","physical_exercise","services","healthcare","financial","all_pois"]
 color_arr = ["red", "blue", "green", "orange", "teal", "yellow", "grey", "brown", "purple", "pink", "black"]
 levels = ["High", "Medium-High", "Medium", "Medium-low", "Low"]
@@ -31,8 +33,7 @@ def Order_graph(feature):
     tmp_lst = [] #make a list containing all "levels" of the order
 
     data_learning = data_learning.filter(like=feature)
-    eval_points = 10 #THIS IS VERY IMPORTANT TO HAVE CORRRRRECTTTTT
-    dist = 20000 #this is for the plotting, use the distance pandana was fed!
+
     for o in range(ORDER):
 
         start = int((o * eval_points))
@@ -56,14 +57,14 @@ def Order_graph(feature):
         axes[count].fill_between(theta, part_mean - std, part_mean + std, color=color_arr[count], alpha=0.4)
         axes[count].legend()
 
-        axes[count].set_xlim(0, dist)
         axes[count].set_xlabel(f"Distance: {dist}")     
         axes[count].set_ylabel("CF Value")
         axes[count].set_ylim(-1.1,1.1) 
+        axes[count].set_xticklabels([])
         count +=1
     
     plt.tight_layout()
-    plt.savefig(OUTPUT + f"{feature}meanwavesikff")
+    plt.savefig(OUTPUT + f"{feature}meanwave_ordered")
     
 print("Making feature level split graphs")
 def mean_for_single_feature_graph(feature):
@@ -107,9 +108,9 @@ def mean_for_single_feature_graph(feature):
     plt.tight_layout()
     plt.savefig(OUTPUT + f"{feature}meanwave")
         
-#for feature in features:
+for feature in features:
     #mean_for_single_feature_graph(feature=feature)
-    #Order_graph(feature=feature)
+    Order_graph(feature=feature)
 print("Making feature order split graphs")
 def interpolate_dense(theta, y, factor=100):
     theta_dense = np.linspace(theta[0], theta[-1], len(theta) * factor)
