@@ -1,8 +1,8 @@
 [
   {
-    "order": 10,
-    "thetamax": 10,
-    "evalpoints": 50,
+    "order": 5,
+    "thetamax": 2.5,
+    "evalpoints": 25,
     "output": "projects"
   },
   {
@@ -60,9 +60,34 @@
     "name": "Greater Melbourne, Australia"
   },
   {
-    "name": "Copenhagen, Denmark"
+    "name": "Copenhagen, Denmark",
+    "multi":{
+      [
+        "Copenhagen Municipality, Denmark",
+        "Frederiksberg Municipality, Denmark", 
+        "Tårnby Municipality, Denmark", 
+        "Dragør Municipality, Denmark",
+        "Rødovre Municipality, Denmark", 
+        "Hvidovre Municipality, Denmark",
+        "Gladsaxe Municipality, Denmark",
+        "Gentofte Municipality, Denmark",
+        "Glostrup Municipality, Denmark",
+        "Albertslund Municipality, Denmark",
+        "Høje-Taastrup Municipality, Denmark",
+        "Ishøj Municipality, Denmark",
+        "Ballerup Municipality, Denmark",
+        "Herlev Municipality, Denmark",
+        "Lyngby-Taarbæk Municipality, Denmark"
+            ]
+    }
   },
   {
     "name": "Daegu, South Korea"
+  },
+  {
+    "name": "Wuhan, Hubei, China"
+  },
+  {
+    "name": "Warsaw, Masovian Voivodeship, Poland"
   }
 ]

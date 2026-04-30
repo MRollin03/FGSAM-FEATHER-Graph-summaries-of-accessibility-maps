@@ -36,7 +36,8 @@ for item in "${locations[@]:1}"; do
 
     # Checking if its BBOX or PLACE
     bbox=$(jq --raw-output '.bbox' <<< "$item")
-    if [ $bbox != null ]; then
+    if [[ "$bbox" != "null" ]]; then
+
       # Hent koordinater
       west=$(jq --raw-output '.bbox.west' <<< "$item")
       south=$(jq --raw-output '.bbox.south' <<< "$item")

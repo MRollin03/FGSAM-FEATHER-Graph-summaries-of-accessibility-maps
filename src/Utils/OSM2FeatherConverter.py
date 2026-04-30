@@ -48,6 +48,7 @@ import pyproj
 
 ox.settings.use_cache = True
 ox.settings.log_console = True
+ox.settings.timeout = 600
 
 # ---------------------------------------------------------------------------
 # POI tag definitions
