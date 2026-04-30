@@ -144,7 +144,7 @@ def Convert(args):
         )
     
         vmin = nearest_pois["all_pois"].min()
-        vmax=args.distance
+        vmax=2500
         nearest_pois.plot(
             ax=ax,
             column="all_pois",
@@ -174,7 +174,7 @@ def Convert(args):
             figsize=(36,34)
         )
         vmin = nearest_pois[args.solo].min()
-        vmax=args.distance
+        vmax=2500
         nearest_pois.plot(
             ax=ax,
             column=args.solo,
