@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 
 # this is my BALLER turbo grapher, the intent is to graph and quickly show a statistical display of the node distribution within a given accesiblilty csv.
 
-CSV_FILE = "projects/daegu_30000_all/featuresteis.csv"
-OUTPUT = "./projects/daegu_30000_all/"
-LABEL_COL = "daegu_30000_all"
+CSV_FILE = "projects/daegu_20000_all_25e/featuresteis.csv"
+OUTPUT = "./projects/daegu_20000_all_25e/"
+LABEL_COL = "daegu_20000_all_25e"
 DISTANCE = 2500  #this is a surprize tool that will help us later. SHOULKD BE RENAMED TO SCORE_LIMIT
 data = pd.read_csv(CSV_FILE)
 ## We read the csv file here, NOTE: this is not the post feather csv, but the pandana output.
@@ -84,7 +84,7 @@ for blabel, valuez in feature_dict.items():
 
 # Add some text for labels, title and custom x-axis tick labels, etc.
 ax.set_ylabel('Percentage')
-ax.set_title('Feature Distribution sorted by score and clustered by category')
+ax.set_title('Feature Distribution sorted for '+ LABEL_COL + ' by score and clustered by category')
 ax.set_xticks((x + width)*11, label_list)
 ax.set_xlabel('each category is sorted by order: High, Medium-High, Medium, Medium-Low, Low, each representing a 20% cutoff of score limit')
 ax.legend(loc='upper left', ncols=6)
