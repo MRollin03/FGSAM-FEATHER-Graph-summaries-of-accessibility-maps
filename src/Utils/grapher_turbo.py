@@ -24,10 +24,7 @@ def plot(var):
     else:
         CSV_FILE = args.input + "/featuresteis.csv"
         OUTPUT = args.input
-        LABEL_COL = args.input
-    
-    
-    
+        LABEL_COL = args.name
     
     data = pd.read_csv(CSV_FILE)
     ## We read the csv file here, NOTE: this is not the post feather csv, but the pandana output.
@@ -35,7 +32,8 @@ def plot(var):
 
 
     # drop id col, we will not need it.
-    data = data.drop(columns=['id'], errors='ignore') #this does nothing :P
+    data = data.loc[:, ~data.columns.str.startswith('Unnamed')]
+    data = data.drop(columns=['id'], errors='ignore')
 
     length = data.shape[0] ## get the length of our dataframe, we will need this for percentage calculations
     feature_names = list(data.columns)
@@ -98,7 +96,7 @@ def plot(var):
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_ylabel('Percentage')
-    ax.set_title('Feature Distribution sorted by score and clustered by category')
+    ax.set_title('Feature Distribution sorted for '+ LABEL_COL + ' by score and clustered by category')
     ax.set_xticks((x + width)*11, label_list)
     ax.set_xlabel('each category is sorted by order: High, Medium-High, Medium, Medium-Low, Low, each representing a 20% cutoff of score limit')
     ax.legend(loc='upper left', ncols=6)
@@ -186,6 +184,13 @@ def parse_args():
         required=True,
         type=str,
         help="inputfolder where featureteis.csv is located",
+    )
+    
+    parser.add_argument(    
+        "--name",
+        required=True,
+        type=str,
+        help="city name",
     )
     
     return parser.parse_args()

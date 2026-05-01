@@ -1,12 +1,23 @@
+import os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.interpolate import CubicSpline
 
+# ---- ARGUMENTS ----
+if len(sys.argv) < 2:
+    print("Usage: python grapher_turbo.py <project_folder>")
+    sys.exit(1)
 
-CSV_FILE = "projects/daegu_20000_all/FeatherResult.csv"
-OUTPUT = "./projects/daegu_20000_all/"
-LABEL_COL = "daegu_20000_all"
+BASE_DIR = sys.argv[1]
+
+CSV_FILE = os.path.join(BASE_DIR, "FeatherResult.csv")
+FEATURE_FILE = os.path.join(BASE_DIR, "featuresteis.csv")
+OUTPUT = os.path.join(BASE_DIR, "Dist")
+LABEL_COL = os.path.basename(BASE_DIR)
+
+
 ORDER=5
 THETA_MAX=2.5
 DISTANCE = 3000
@@ -16,6 +27,8 @@ dist = 20000 #this is for the plotting order graf, use the distance pandana was 
 features = ["outdoor_activities","learning","supplies","eating","moving","cultural_activities","physical_exercise","services","healthcare","financial","all_pois"]
 color_arr = ["red", "blue", "green", "orange", "teal", "yellow", "grey", "brown", "purple", "pink", "black"]
 levels = ["High", "Medium-High", "Medium", "Medium-low", "Low"]
+
+os.makedirs(OUTPUT, exist_ok=True)
 
 data = pd.read_csv(CSV_FILE)
 feat_csv = pd.read_csv("./projects/" + LABEL_COL + "/featuresteis.csv")

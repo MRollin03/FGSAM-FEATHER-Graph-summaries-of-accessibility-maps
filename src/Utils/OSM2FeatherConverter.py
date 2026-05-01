@@ -279,6 +279,8 @@ def compute_features(network, n, id_map, all_pois, distance, solo, csvdebug, out
     n["pois"] = n["pois"].truediv(len(frames))
 
     featurez = pd.concat(frames, axis=1, sort=False)
+    if args.solo == None:
+        frames.append(n["all_pois"])
 
     # Re-index from pandana node IDs → OSM IDs
     # id_map is {osm_id: feather_id}; invert it to map feather→osm
