@@ -1,36 +1,98 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 19 08:43:53 2026
 
-@author: aras
-"""
 import argparse
 import pandas as pd
-from pathlib import Path
 import matplotlib.pyplot as plt
 import osmnx as ox
 import os
 import pandana as pdna
-from shapely.ops import unary_union
+import pyproj
+
+from shapely.ops import unary_union, transform
+from shapely.geometry import box
 
 ox.settings.use_cache = True
 ox.settings.log_console = True
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
 def get_combined_polygon(places):
     gdfs = [ox.geocode_to_gdf(p) for p in places]
     return unary_union([g.geometry.iloc[0] for g in gdfs])
 
+
+def get_projected_area_km2(geom):
+    project = pyproj.Transformer.from_crs(
+        "EPSG:4326", "EPSG:32633", always_xy=True
+    ).transform
+    geom_projected = transform(project, geom)
+    return geom_projected.area / 1_000_000
+
+
+def get_bbox_area_km2(west, south, east, north):
+    geom = box(west, south, east, north)
+    return get_projected_area_km2(geom)
+
+
+# ---------------------------------------------------------------------------
+# MAIN
+# ---------------------------------------------------------------------------
+
 def Convert(args):
-    '''
-    This function takes in a bbox (a set of coordinates to indicate an area on a map)
-    and converts all of its features into csv files that are appropriate for the
-    Feather algorithm. ref = https://github.com/benedekrozemberczki/FEATHER
-    '''
-    
-    # Tags with subtags fetched from the Overpass API once
-    # Accessibility amenity tags for Overpass API queries
+
+    project_dir = os.path.join(args.output, args.title)
+    os.makedirs(project_dir, exist_ok=True)
+
+    graphml_path = os.path.join(project_dir, f"{args.title}.graphml")
+    pandana_path = os.path.join(project_dir, f"{args.title}.h5")
+
+    # -----------------------------------------------------------------------
+    # GRAPH
+    # -----------------------------------------------------------------------
+
+    if not os.path.exists(graphml_path):
+
+        if args.type == "BBOX":
+            G = ox.graph.graph_from_bbox(args.bbox, simplify=True, network_type="walk")
+
+        elif args.type == "PLACE":
+            G = ox.graph.graph_from_place(args.place, simplify=True, network_type="walk")
+
+        elif args.type == "MULTI_PLACE":
+            polygon = get_combined_polygon(args.places)
+            G = ox.graph.graph_from_polygon(polygon, simplify=True, network_type="walk")
+
+        ox.io.save_graphml(G, graphml_path)
+
+    else:
+        G = ox.io.load_graphml(graphml_path)
+
+    G = ox.project_graph(G)
+    n, e = ox.graph_to_gdfs(G)
+    e = e.reset_index()
+
+    # -----------------------------------------------------------------------
+    # PANDANA
+    # -----------------------------------------------------------------------
+
+    if os.path.exists(pandana_path):
+        network = pdna.Network.from_hdf5(pandana_path)
+    else:
+        network = pdna.Network(
+            n.geometry.x, n.geometry.y,
+            e["u"], e["v"],
+            e[["length"]],
+        )
+        network.save_hdf5(pandana_path)
+
+    # -----------------------------------------------------------------------
+    # POIs
+    # -----------------------------------------------------------------------
+
     tags = {
         "leisure": [
             # Outdoor Activities
@@ -70,168 +132,110 @@ def Convert(args):
             "picnic_site",
         ],
     }
-    #ox.settings.overpass_url = "https://overpass.maprva.org/api/"
-    graphml_path = args.output + "/" + args.title + "/" + args.title + ".graphml"
-    pandana_path = args.output + "/" + args.title + "/" + args.title + ".h5"
-    
-    if args.title == None:
-        raise ValueError("You need a Title for your project")
-
-    if not os.path.exists(graphml_path):
-        
-        if args.type == "BBOX":
-            G = ox.graph.graph_from_bbox(args.bbox, simplify=True, network_type="walk")
-
-        elif args.type == "PLACE":
-            G = ox.graph.graph_from_place(args.place, simplify=True, network_type="walk")
-
-        elif args.type == "MULTI_PLACE":
-            polygon = get_combined_polygon(args.places)
-            G = ox.graph.graph_from_polygon(polygon, simplify=True, network_type="walk")
-    else:
-        G = ox.io.load_graphml(graphml_path)
-
-    # Load the graph and edges
-    G = ox.project_graph(G)
-
-    if(os.path.exists(pandana_path)):
-        n, e = ox.graph_to_gdfs(G)
-        e = e.reset_index()
-        network = pdna.Network.from_hdf5(pandana_path)
-    else:
-        n, e = ox.graph_to_gdfs(G)
-        e = e.reset_index()
-        network = pdna.Network(n.geometry.x, n.geometry.y, e["u"], e["v"], e[["length"]])
-
-        network.save_hdf5(pandana_path)
 
     if args.type == "BBOX":
         all_pois = ox.features_from_bbox(args.bbox, tags).to_crs(n.crs)
-        all_pois["geometry"] = all_pois.centroid
 
     elif args.type == "PLACE":
         all_pois = ox.features_from_place(args.place, tags).to_crs(n.crs)
-        all_pois["geometry"] = all_pois.centroid
 
     elif args.type == "MULTI_PLACE":
         polygon = get_combined_polygon(args.places)
         all_pois = ox.features_from_polygon(polygon, tags).to_crs(n.crs)
-        all_pois["geometry"] = all_pois.centroid
 
-    reducedpois = pd.DataFrame(all_pois, columns=["geometry", "amenity", "education", "shop", "healthcare"])
-    reducedpois = reducedpois.droplevel("element")
-    reducededges = pd.DataFrame(e, columns=["u", "v"])
+    all_pois["geometry"] = all_pois.centroid
 
-    # Takes all nodes connected by edges and assigns an integer ID from 0 to (n-1)
-    featherIDtoOSMID = {}
-    counter = 0
-    for index, row in reducededges.iterrows():
-        node1 = row['u']
-        node2 = row['v']
+    # -----------------------------------------------------------------------
+    # ID Mapping
+    # -----------------------------------------------------------------------
 
-        if node1 not in featherIDtoOSMID:
-            featherIDtoOSMID[node1] = counter
-            counter += 1
+    featherIDtoOSMID = {osm_id: i for i, osm_id in enumerate(n.index)}
 
-        if node2 not in featherIDtoOSMID:
-            featherIDtoOSMID[node2] = counter
-            counter += 1
+    edges_out = e[["u", "v"]].replace(featherIDtoOSMID)
+    edges_out.to_csv(os.path.join(project_dir, "FeatherEdges.csv"), index=False)
 
-   
+    # -----------------------------------------------------------------------
+    # FEATURES
+    # -----------------------------------------------------------------------
 
-    # Converts the old edges dataframe into a dataframe with the new node IDs
-    OsmEdgesToFeather(reducededges, featherIDtoOSMID)
-    
-    nearest_pois = ComputeFeatures(network, n, featherIDtoOSMID, all_pois)
-    if args.solo == None:
-        fig, ax = ox.plot.plot_graph(
-            G,
-            node_size=0,
-            edge_color="#afdffe",
-            edge_linewidth=0.6,
-            bgcolor="#1a1a1a",
-            show=False,
-            close=False,
-            figsize=(36,34)
-        )
-    
-        vmin = nearest_pois["all_pois"].min()
-        vmax=2500
-        nearest_pois.plot(
-            ax=ax,
-            column="all_pois",
-            cmap="plasma",
-            markersize=3.5,
-            alpha=0.8,
-            legend=True,
-            legend_kwds={
-                "shrink": 0.5,
-                "label": f"Average distance to any pois ≤ {vmax} m",
-                "orientation": "vertical"
-            },
-            vmin=vmin,
-            vmax=vmax
-        )
-        
-        plt.savefig(args.output + "/" + args.title + "/" + "all_pois")
+    nearest_pois = ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args)
+
+    # -----------------------------------------------------------------------
+    # HEATMAP
+    # -----------------------------------------------------------------------
+
+    fig, ax = ox.plot.plot_graph(
+        G,
+        node_size=0,
+        edge_color="#afdffe",
+        edge_linewidth=0.6,
+        bgcolor="#1a1a1a",
+        show=False,
+        close=False,
+        figsize=(36, 34)
+    )
+
+    if args.solo:
+        column = args.solo
+        label = f"Average distance to {args.solo} ≤ {args.distance} m"
+        filename = f"{args.solo}_pois.png"
     else:
-        fig, ax = ox.plot.plot_graph(
-            G,
-            node_size=0,
-            edge_color="#afdffe",
-            edge_linewidth=0.6,
-            bgcolor="#1a1a1a",
-            show=False,
-            close=False,
-            figsize=(36,34)
-        )
-        vmin = nearest_pois[args.solo].min()
+        column = "all_pois"
+        label = f"Average distance to any POI ≤ {args.distance} m"
+        filename = "all_pois.png"
+
+    nearest_pois.plot(
+        ax=ax,
+        column=column,
+        cmap="plasma",
+        markersize=3.5,
+        alpha=0.8,
+        legend=True,
+        legend_kwds={"shrink": 0.5, "label": label},
+        vmin=nearest_pois[column].min(),
         vmax=2500
-        nearest_pois.plot(
-            ax=ax,
-            column=args.solo,
-            cmap="plasma",
-            markersize=3.5,
-            alpha=0.8,
-            legend=True,
-            legend_kwds={
-                "shrink": 0.5,
-                "label": f"Average distance to {args.solo } ≤ {args.distance} m",
-                "orientation": "vertical"
-            },
-            vmin=vmin,
-            vmax=vmax
-        )
-        
-        plt.savefig(args.output + "/" + args.title + "/" + args.solo + "_pois")
-    return exit(0)
+    )
 
-def OsmEdgesToFeather(ogEdges, featherIDtoOSMID):
-    '''
-    Converts OSM node IDs in the edge list to sequential Feather IDs
-    and writes the result to ./output/FeatherEdges.csv.
-    '''
+    plt.savefig(os.path.join(project_dir, filename))
+    plt.close()
 
-    if not featherIDtoOSMID:
-        raise ValueError("featherIDtoOSMID is empty")
+    # -----------------------------------------------------------------------
+    # GRAPH INFO
+    # -----------------------------------------------------------------------
 
-    if ogEdges.empty:
-        raise ValueError("Input edges are empty")
+    info_path = os.path.join(project_dir, "graph_info.txt")
 
-    convertedEdges = ogEdges[["u", "v"]].replace(featherIDtoOSMID)
-    convertedEdges.to_csv("./" + args.output + "/" + args.title +  "/FeatherEdges.csv", index=False)
+    num_nodes = len(n)
+    num_edges = len(e)
+    num_pois = len(all_pois)
 
 
+    if args.type == "BBOX":
+        west, south, east, north = args.bbox
+        area_km2 = get_bbox_area_km2(west, south, east, north)
+    else:
+        area_km2 = all_pois.unary_union.convex_hull.area / 1_000_000
 
-def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
-    '''
-    For each POI category, computes the nearest POI distance for every network
-    node using pandana, then writes a feature CSV for the Feather algorithm.
-    Also annotates n["pois"] with a count of how many category POIs are within
-    the threshold distance.
-    '''
+    node_density = num_nodes / area_km2 if area_km2 > 0 else 0
+    poi_density = num_pois / area_km2 if area_km2 > 0 else 0
 
-    # Hjælpefunktion der returnerer tom række hvis kolonnen mangler
+    with open(info_path, "w", encoding="utf-8") as f:
+        f.write(f"Graph Information for {args.title}\n")
+        f.write(f"===============================\n\n")
+        f.write(f"Nodes: {num_nodes}\nEdges: {num_edges}\nPOIs: {num_pois}\n\n")
+        f.write(f"Area (km^2): {area_km2:.3f}\n")
+        f.write(f"Node density: {node_density:.3f}\n")
+        f.write(f"POI density: {poi_density:.3f}\n")
+
+    print(f"[info] Saved graph information → {info_path}")
+
+
+# ---------------------------------------------------------------------------
+# FEATURES
+# ---------------------------------------------------------------------------
+
+def ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args):
+
     def filter_poi(df, col, values):
         if col in df.columns:
             return df[df[col].isin(values)]
@@ -265,145 +269,71 @@ def ComputeFeatures(network, n, featherIDtoOSMID, all_pois):
         "financial": filter_poi(all_pois, "amenity", ["atm", "bank", "payment_terminal", "payment_centre"]),
     }
 
-    distance = args.distance   # max search distance (metres)
-    #dist = 500        # threshold for counting a POI as "accessible"
     n["all_pois"] = 0
-
     frames = []
-    if args.solo == None:
-        for cat, data in categories.items():
-            if data.empty:
-                continue
-    
-            network.set_pois(
-                category=cat,
-                maxdist=distance,
-                maxitems=1000,
-                x_col=data.geometry.x,
-                y_col=data.geometry.y,
-            )
-    
-            nearest_pois = network.nearest_pois(
-                distance=distance,
-                category=cat,
-                num_pois=20,
-            )
-            nearest_pois[cat] = nearest_pois.sum(axis=1)
-            nearest_pois = nearest_pois.iloc[:,-1:].truediv(20).round(3)
-            #nearest_pois = distance - nearest_pois #inverts output
-            #nearest_pois.columns = [cat]
-    
-            # Count nodes that have this category's nearest POI within threshold(deleted threshold, we ball)
-            if cat == args.csvdebug: #(this is to insert zero rows, to examine feather output)
-                nearest_pois[:] = 0
-                n[cat] = nearest_pois[cat]
-            else:
-                n[cat] = nearest_pois[cat]
-                n["all_pois"] += nearest_pois[cat]
-            
-            frames.append(nearest_pois)
-    else:
-        for cat, data in categories.items():
-            if data.empty:
-                continue
-            if cat == args.solo:
-                network.set_pois(
-                    category=args.solo,
-                    maxdist=distance,
-                    maxitems=1000,
-                    x_col=data.geometry.x,
-                    y_col=data.geometry.y,
-                )
-        
-                nearest_pois = network.nearest_pois(
-                    distance=distance,
-                    category=args.solo,
-                    num_pois=20,
-                )
-                nearest_pois[args.solo] = nearest_pois.sum(axis=1)
-                nearest_pois = nearest_pois.iloc[:,-1:].truediv(20)
-                n[args.solo] = nearest_pois[args.solo]
-                frames.append(nearest_pois)
-    if not frames:
-        raise RuntimeError("No POI categories had any data — feature CSV not written.")
-    n["all_pois"] = n["all_pois"].truediv(len(frames))
-    if args.solo == None:
-        frames.append(n["all_pois"])    
-    featurez = pd.concat(frames, axis=1, sort=False)
+
+    for cat, data in categories.items():
+        if data.empty:
+            continue
+
+        network.set_pois(
+            category=cat,
+            maxdist=args.distance,
+            maxitems=100,
+            x_col=data.geometry.x,
+            y_col=data.geometry.y,
+        )
+
+        nearest = network.nearest_pois(
+            distance=args.distance,
+            category=cat,
+            num_pois=5
+        )
+
+        nearest[cat] = nearest.mean(axis=1)
+        n[cat] = nearest[cat]
+        n["all_pois"] += nearest[cat]
+
+        frames.append(nearest[[cat]])
+
+    if frames:
+        n["all_pois"] /= len(frames)
+        frames.append(n["all_pois"])
+
+    featurez = pd.concat(frames, axis=1)
     featurez.index = featurez.index.map(featherIDtoOSMID)
-    featurez.sort_index(inplace=True)
-    featurez.index.name = None
-    # EVIL code below, NOTE: this is meant to be used with a 10m distance in nearest_pois!
-    # it should be noted that these fucked upo and evil functions replaces all instances of FALSE with the given value.
-    #featurezz = featurez.where(featurez < 10,0) # all cells with no features within 10m are 10! so we replace em with zeroes
-    #featurezz= featurez.where(featurez < 1,1) #replaces everything not below 1 with 1, now we have our evil and fucked up feature matrix
-    #featurezz.to_csv("./"+ args.output + "/" + args.title + "/featuresEvil.csv", index=False)
-    featurez.to_csv("./"+ args.output + "/" + args.title + "/featuresteis.csv", index=False)
+    featurez.to_csv(os.path.join(args.output, args.title, "featureteis.csv"), index=False)
 
     return n
 
+
 # ---------------------------------------------------------------------------
+# CLI
+# ---------------------------------------------------------------------------
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Converts OSM BBOX or PLACES into FEATHER Compatible files"
-    )
-    
-    
-    parser.add_argument(
-        "--title",
-        type = str,
-        required=True,
-        help="Title for the project"
-    )
 
-    parser.add_argument(
-        "--places",
-        nargs="+",
-        help="List of places (used when type=MULTI_PLACE)"
-    )
+    parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        "--type",
-        required=True,
-        choices=["BBOX", "PLACE", "MULTI_PLACE"],
-    )
-    
-    parser.add_argument(
-        "--solo",
-        type=str,
-        help="if you only want one tag cat, name it here(if none, all 10 categories will be saved to feature csv)"
-    )
-    parser.add_argument(
-        "--distance",
-        type=int,
-        default=2000,
-        help="the distance to look for out 20 pois per cat, this is alos used as vmax for the heatmap graph"
-    )
-    parser.add_argument(
-        "--csvdebug",
-        type=str,
-        help="this takes a category name, and makes all rows of that zero(this is just to make spotting petterns in the feature csv easier, not for use with solo)"
-    )
-    
-    parser.add_argument(
-        "--output", 
-        required=True,
-        type=str,
-        help="output direectory for the project folder"
-        )
-    
+    parser.add_argument("--title", required=True)
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--distance", type=int, default=2000)
+
+    parser.add_argument("--type", required=True, choices=["BBOX", "PLACE", "MULTI_PLACE"])
+    parser.add_argument("--bbox", nargs=4, type=float)
+    parser.add_argument("--place")
+    parser.add_argument("--places", nargs="+")
+    parser.add_argument("--solo")
 
     args = parser.parse_args()
 
     if args.type == "BBOX" and not args.bbox:
-        parser.error("--bbox is required when type=BBOX")
+        raise SystemExit("BBOX requires --bbox")
 
     if args.type == "PLACE" and not args.place:
-        parser.error("--place is required when type=PLACE")
+        raise SystemExit("PLACE requires --place")
 
     if args.type == "MULTI_PLACE" and not args.places:
-        parser.error("--places is required when type=MULTI_PLACE")
+        raise SystemExit("MULTI_PLACE requires --places")
 
-    
     Convert(args)
-    
