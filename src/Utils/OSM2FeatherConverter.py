@@ -14,7 +14,7 @@ from shapely.geometry import box
 
 ox.settings.use_cache = True
 ox.settings.log_console = True
-
+ox.settings.timeout = 420
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -158,7 +158,7 @@ def Convert(args):
     # FEATURES
     # -----------------------------------------------------------------------
 
-    nearest_pois = ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args)
+    nearest_pois, featurez = ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args)
 
     # -----------------------------------------------------------------------
     # HEATMAP
@@ -219,13 +219,35 @@ def Convert(args):
     node_density = num_nodes / area_km2 if area_km2 > 0 else 0
     poi_density = num_pois / area_km2 if area_km2 > 0 else 0
 
+    if "all_pois" in nearest_pois.columns:
+        best_idx = nearest_pois["all_pois"].idxmin()
+        worst_idx = nearest_pois["all_pois"].idxmax()
+
+        best_score = nearest_pois.loc[best_idx, "all_pois"]
+        worst_score = nearest_pois.loc[worst_idx, "all_pois"]
+
+        best_geom = nearest_pois.loc[best_idx].geometry
+        worst_geom = nearest_pois.loc[worst_idx].geometry
+    else:
+        best_idx = worst_idx = None
+    
+
     with open(info_path, "w", encoding="utf-8") as f:
-        f.write(f"Graph Information for {args.title}\n")
-        f.write(f"===============================\n\n")
-        f.write(f"Nodes: {num_nodes}\nEdges: {num_edges}\nPOIs: {num_pois}\n\n")
-        f.write(f"Area (km^2): {area_km2:.3f}\n")
-        f.write(f"Node density: {node_density:.3f}\n")
-        f.write(f"POI density: {poi_density:.3f}\n")
+            f.write(f"Graph Information for {args.title}\n")
+            f.write(f"===============================\n\n")
+            f.write(f"Nodes: {num_nodes}\nEdges: {num_edges}\nPOIs: {num_pois}\n\n")
+            f.write(f"Area (km^2): {area_km2:.3f}\n")
+            f.write(f"Node density: {node_density:.3f}\n")
+            f.write(f"POI density: {poi_density:.3f}\n")
+
+            f.write("Best node (highest accessibility):\n")
+            f.write(f"  OSM ID: {best_idx}\n")
+            f.write(f"  Score: {best_score:.2f}\n")
+            f.write(f"  Coordinates: ({best_geom.y:.6f}, {best_geom.x:.6f})\n\n")
+
+            f.write("Worst node (lowest accessibility):\n")
+            f.write(f"  OSM ID: {worst_idx}\n")
+            f.write(f"  Score: {worst_score:.2f}\n")
 
     print(f"[info] Saved graph information → {info_path}")
 
@@ -304,8 +326,7 @@ def ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args):
     featurez.index = featurez.index.map(featherIDtoOSMID)
     featurez.to_csv(os.path.join(args.output, args.title, "featureteis.csv"), index=False)
 
-    return n
-
+    return n, featurez
 
 # ---------------------------------------------------------------------------
 # CLI
