@@ -39,6 +39,8 @@ def load_features(features_path):
     features =  np.array(pd.read_csv(features_path))
     return features
 
+
+
 def load_graphs(graphs_path):
     """
     Reading a NetworkX graph.
@@ -48,6 +50,21 @@ def load_graphs(graphs_path):
     graphs = json.load(open(graphs_path))
     graphs = [nx.from_edgelist(graphs[str(k)]) for k in range(len(graphs))]
     return graphs
+
+def load_graph(graph_path):
+    """
+    Reading a weighted NetworkX graph.
+    """
+    data = pd.read_csv(graph_path) # CSV has: source, target, weight
+    
+    # Create the graph directly from the DataFrame to preserve weights
+    graph = nx.from_pandas_edgelist(data, 
+                                    source=data.columns[0], 
+                                    target=data.columns[1], 
+                                    edge_attr=data.columns[2]) # The 3rd column is 'weight'
+    
+    graph.remove_edges_from(nx.selfloop_edges(graph))
+    return graph
 
 def save_embedding(X, args):
     """

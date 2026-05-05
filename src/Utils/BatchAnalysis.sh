@@ -59,5 +59,12 @@ for item in "${locations[@]:1}"; do
     python FEATHER/src/main.py \
         --graph-input "${output}/${name}/FeatherEdges.csv" \
         --feature-input "./${output}/${name}/featuresteis.csv" \
-        --output "./${output}/${name}/FeatherResult.csv"
+        --output "./${output}/${name}/FeatherResult.csv" \
+        --eval-points $evalpoints \
+        --order $order \
+        --theta-max $thetamax &&
+    
+
+    python GraphMaker.py --input "$name" --order  $order 
+
 done

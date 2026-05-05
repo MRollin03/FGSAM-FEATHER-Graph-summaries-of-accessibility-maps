@@ -16,21 +16,39 @@ class FEATHER:
         self.theta_max = theta_max
         self.eval_points = eval_points
         self.order = order
-
+        
+        
+    """ ORIGINAL IMplementation num of node probebility
     def _create_D_inverse(self, graph):
-        """
+        
         Creating a sparse inverse degree matrix.
         
         Arg types:
             * **graph** *(NetworkX graph)* - The graph to be embedded.
         Return types:
             * **D_inverse** *(Scipy array)* - Diagonal inverse degree matrix.
-        """
+        
         index = np.arange(graph.number_of_nodes())
         values = np.array([1.0/graph.degree[node] for node in range(graph.number_of_nodes())])
         shape = (graph.number_of_nodes(), graph.number_of_nodes())
         D_inverse = sparse.coo_matrix((values, (index, index)), shape=shape)
         return D_inverse
+    """ 
+    
+    def _create_D_inverse(self, graph):
+        index = np.arange(graph.number_of_nodes())
+        # Use weighted degree (sum of edge weights)
+        # 'weight' is the length of the road/edge
+        weights_sum = np.array([graph.degree(node, weight='weight') for node in range(graph.number_of_nodes())])
+        
+        # Handle division by zero for isolated nodes
+        weights_sum[weights_sum == 0] = 1.0 
+        values = 1.0 / weights_sum
+        
+        shape = (graph.number_of_nodes(), graph.number_of_nodes())
+        D_inverse = sparse.coo_matrix((values, (index, index)), shape=shape)
+        return D_inverse
+
 
     def _create_A_tilde(self, graph):
         """
@@ -45,6 +63,14 @@ class FEATHER:
         D_inverse = self._create_D_inverse(graph) 
         A_tilde = D_inverse.dot(A)
         return A_tilde
+    
+    def _create_A_tilde(self, graph):
+        #  request the weight from the edges
+        A = nx.adjacency_matrix(graph, nodelist=range(graph.number_of_nodes()), weight='weight')
+        D_inverse = self._create_D_inverse(graph) 
+        A_tilde = D_inverse.dot(A)
+        return A_tilde
+
 
     def fit(self, graph, X, args):
         """
