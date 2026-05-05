@@ -8,6 +8,7 @@ import osmnx as ox
 import os
 import pandana as pdna
 import pyproj
+import matplotlib
 
 from shapely.ops import unary_union, transform
 from shapely.geometry import box
@@ -15,6 +16,7 @@ from shapely.geometry import box
 ox.settings.use_cache = True
 ox.settings.log_console = True
 ox.settings.timeout = 420
+matplotlib.use('Agg')
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -148,56 +150,61 @@ def Convert(args):
     # -----------------------------------------------------------------------
     # ID Mapping
     # -----------------------------------------------------------------------
-
+    
+    #  mapping (OSM ID -> Integer 0..N)
     featherIDtoOSMID = {osm_id: i for i, osm_id in enumerate(n.index)}
 
-    edges_out = e[["u", "v"]].replace(featherIDtoOSMID)
+    # Transform nodes (vi skal også bruge de nye ID'er her for at matche edges)
+    nodes_out = n.copy()
+    nodes_out.index = nodes_out.index.map(featherIDtoOSMID)
+    nodes_out['x'] = nodes_out.geometry.x
+    nodes_out['y'] = nodes_out.geometry.y
+    
+    # Gem nodes
+    #nodes_out[['x', 'y']].to_csv(os.path.join(project_dir, "FeatherNodes.csv"), index_label="node_id")
+
+    #  Transform edges
+    edges_out = e[["u", "v"]].copy()
+    edges_out["u"] = edges_out["u"].map(featherIDtoOSMID)
+    edges_out["v"] = edges_out["v"].map(featherIDtoOSMID)
+    edges_out["length"] = e["length"].round(3)
+    
+    # Gem edges
     edges_out.to_csv(os.path.join(project_dir, "FeatherEdges.csv"), index=False)
+    
 
     # -----------------------------------------------------------------------
     # FEATURES
     # -----------------------------------------------------------------------
 
-    nearest_pois, featurez = ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args)
+    nearest_pois = MarkCategoryNodes(network, n, all_pois, featherIDtoOSMID, args)
+    
+    #TODO: IMPLEMENT NEW PLOTTING METHOD
 
     # -----------------------------------------------------------------------
     # HEATMAP
     # -----------------------------------------------------------------------
 
-    fig, ax = ox.plot.plot_graph(
-        G,
-        node_size=0,
-        edge_color="#afdffe",
-        edge_linewidth=0.6,
-        bgcolor="#1a1a1a",
-        show=False,
-        close=False,
-        figsize=(36, 34)
-    )
+    # Valg af kolonne til plot
+    column = args.solo if args.solo else "all_pois"
+    label = f"Nodes marked as {column} (1=Yes, 0=No)"
+    
+    # Plot kun noder der er 1 (valgfrit, men ser bedre ud)
+    active_nodes = nearest_pois[nearest_pois[column] == 1]
 
-    if args.solo:
-        column = args.solo
-        label = f"Average distance to {args.solo} ≤ {args.distance} m"
-        filename = f"{args.solo}_pois.png"
-    else:
-        column = "all_pois"
-        label = f"Average distance to any POI ≤ {args.distance} m"
-        filename = "all_pois.png"
-
-    nearest_pois.plot(
+    active_nodes.plot(
         ax=ax,
         column=column,
-        cmap="plasma",
-        markersize=3.5,
-        alpha=0.8,
-        legend=True,
-        legend_kwds={"shrink": 0.5, "label": label},
-        vmin=nearest_pois[column].min(),
-        vmax=2500
+        cmap="spring", # Kraftig farve til 1-tallerne
+        markersize=10,
+        alpha=1.0,
+        legend=False
     )
+    
+    plt.savefig(os.path.join(project_dir, "TESTEROGGRAPH.png"))
+    
 
-    plt.savefig(os.path.join(project_dir, filename))
-    plt.close()
+   
 
     # -----------------------------------------------------------------------
     # GRAPH INFO
@@ -228,8 +235,35 @@ def Convert(args):
 
         best_geom = nearest_pois.loc[best_idx].geometry
         worst_geom = nearest_pois.loc[worst_idx].geometry
+        
+        
+        # Plotting best and worst ndoe
+        ax.scatter(
+            best_geom.x,
+            best_geom.y,
+            c="lime",
+            s=100,
+            marker="o",
+            label="Best node"
+        )
+
+        ax.scatter(
+            worst_geom.x,
+            worst_geom.y,
+            c="lime",
+            s=150,
+            marker="x",
+            label="Worst node"
+        )
+
+        
     else:
         best_idx = worst_idx = None
+        
+    
+        
+    plt.savefig(os.path.join(project_dir, filename))
+    plt.close()
     
 
     with open(info_path, "w", encoding="utf-8") as f:
@@ -255,9 +289,83 @@ def Convert(args):
 # ---------------------------------------------------------------------------
 # FEATURES
 # ---------------------------------------------------------------------------
+'''
 
-def ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args):
+        def ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args):
 
+            def filter_poi(df, col, values):
+                if col in df.columns:
+                    return df[df[col].isin(values)]
+                return pd.DataFrame(columns=df.columns)
+
+            categories = {
+                "outdoor_activities": pd.concat([
+                    filter_poi(all_pois, "leisure", ["park", "playground", "bathing_place", "garden", "pitch", "stadium", "swimming_area", "track"]),
+                    filter_poi(all_pois, "tourism", ["picnic_site"])
+                ]).drop_duplicates(),
+
+                "learning": filter_poi(all_pois, "amenity", ["college", "school", "library", "kindergarten", "university", "training"]),
+
+                "supplies": filter_poi(all_pois, "shop", ["department_store", "general", "mall", "supermarket", "convenience", "bakery", "butcher", "greengrocer", "books", "stationery", "clothes", "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware"]),
+
+                "eating": filter_poi(all_pois, "amenity", ["pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"]),
+
+                "moving": filter_poi(all_pois, "public_transport", ["platform", "station", "stop_position"]),
+
+                "cultural_activities": pd.concat([
+                    filter_poi(all_pois, "amenity", ["cinema", "community_centre", "theatre"]),
+                    filter_poi(all_pois, "tourism", ["aquarium", "gallery", "museum", "zoo"])
+                ]).drop_duplicates(),
+
+                "physical_exercise": filter_poi(all_pois, "leisure", ["fitness_centre", "fitness_station", "sports_centre", "swimming_pool"]),
+
+                "services": filter_poi(all_pois, "amenity", ["fire_station", "police", "post_office", "post_box", "townhall", "toilets"]),
+
+                "healthcare": filter_poi(all_pois, "amenity", ["clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"]),
+
+                "financial": filter_poi(all_pois, "amenity", ["atm", "bank", "payment_terminal", "payment_centre"]),
+            }
+
+            n["all_pois"] = 0
+            frames = []
+
+            for cat, data in categories.items():
+                if data.empty:
+                    continue
+
+                network.set_pois(
+                    category=cat,
+                    maxdist=args.distance,
+                    maxitems=100,
+                    x_col=data.geometry.x,
+                    y_col=data.geometry.y,
+                )
+
+                nearest = network.nearest_pois(
+                    distance=args.distance,
+                    category=cat,
+                    num_pois=5
+                )
+
+                nearest[cat] = nearest.mean(axis=1)
+                n[cat] = nearest[cat]
+                n["all_pois"] += nearest[cat]
+
+                frames.append(nearest[[cat]])
+
+            if frames:
+                n["all_pois"] /= len(frames)
+                frames.append(n["all_pois"])
+
+            featurez = pd.concat(frames, axis=1)
+            featurez.index = featurez.index.map(featherIDtoOSMID)
+            featurez.to_csv(os.path.join(args.output, args.title, "featuresteis.csv"), index=False)
+
+            return n, featurez
+        '''
+
+def MarkCategoryNodes(network, n, all_pois, featherIDtoOSMID, args):
+    
     def filter_poi(df, col, values):
         if col in df.columns:
             return df[df[col].isin(values)]
@@ -290,43 +398,33 @@ def ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args):
 
         "financial": filter_poi(all_pois, "amenity", ["atm", "bank", "payment_terminal", "payment_centre"]),
     }
-
-    n["all_pois"] = 0
-    frames = []
-
+    
+    # Opret en kopi af noderne til resultatet
+    n_features = pd.DataFrame(index=n.index)
+    
+    # Loop gennem hver kategori
     for cat, data in categories.items():
         if data.empty:
+            n_features[cat] = 0
             continue
+            
+        # Find de nærmeste node for POIs
+        poi_nodes = network.get_node_ids(data.geometry.x, data.geometry.y)
+        
+        # Marker disse noder med 1 (standard er 0)
+        n_features[cat] = 0
+        n_features.loc[ cat] = 1
 
-        network.set_pois(
-            category=cat,
-            maxdist=args.distance,
-            maxitems=100,
-            x_col=data.geometry.x,
-            y_col=data.geometry.y,
-        )
+    # Lav en samlet "is_amenity" kolonne (1 hvis den tilhører mindst én kategori)
+    n_features["any_amenity"] = (n_features.sum(axis=1) > 0).astype(int)
 
-        nearest = network.nearest_pois(
-            distance=args.distance,
-            category=cat,
-            num_pois=5
-        )
+    # Map ID'er og gem
+    n_features.index = n_features.index.map(featherIDtoOSMID)
+    n_features.to_csv(os.path.join(args.output, args.title, "category_nodes.csv"),index=False)
+    
 
-        nearest[cat] = nearest.mean(axis=1)
-        n[cat] = nearest[cat]
-        n["all_pois"] += nearest[cat]
+    return n_features
 
-        frames.append(nearest[[cat]])
-
-    if frames:
-        n["all_pois"] /= len(frames)
-        frames.append(n["all_pois"])
-
-    featurez = pd.concat(frames, axis=1)
-    featurez.index = featurez.index.map(featherIDtoOSMID)
-    featurez.to_csv(os.path.join(args.output, args.title, "featureteis.csv"), index=False)
-
-    return n, featurez
 
 # ---------------------------------------------------------------------------
 # CLI
