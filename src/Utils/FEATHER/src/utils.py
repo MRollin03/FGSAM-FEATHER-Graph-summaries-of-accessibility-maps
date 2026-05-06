@@ -16,20 +16,20 @@ def tab_printer(args):
     t = Texttable()
     t.add_rows([["Parameter", "Value"]] + [[k.replace("_", " ").capitalize(), args[k]] for k in keys])
     print(t.draw())
-
+"""
 def load_graph(graph_path):
-    """
+    
     Reading a NetworkX graph.
     :param graph_path: Path to the edge list.
     :return graph: NetworkX object.
-    """
+    
     data = pd.read_csv(graph_path)
     edges = data.values.tolist()
     edges = [[int(edge[0]), int(edge[1])] for edge in edges]
     graph = nx.from_edgelist(edges)
     graph.remove_edges_from(nx.selfloop_edges(graph))
     return graph
-
+"""
 def load_features(features_path):
     """
     Reading the features from drive.

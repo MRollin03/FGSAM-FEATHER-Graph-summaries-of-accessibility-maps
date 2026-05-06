@@ -37,11 +37,10 @@ class FEATHER:
     
     def _create_D_inverse(self, graph):
         index = np.arange(graph.number_of_nodes())
-        # Use weighted degree (sum of edge weights)
-        # 'weight' is the length of the road/edge
+        # weight is the length of the road/edge
         weights_sum = np.array([graph.degree(node, weight='weight') for node in range(graph.number_of_nodes())])
         
-        # Handle division by zero for isolated nodes
+        # Handle division by zero
         weights_sum[weights_sum == 0] = 1.0 
         values = 1.0 / weights_sum
         
@@ -49,21 +48,21 @@ class FEATHER:
         D_inverse = sparse.coo_matrix((values, (index, index)), shape=shape)
         return D_inverse
 
-
-    def _create_A_tilde(self, graph):
-        """
-        Creating a sparse normalized adjacency matrix.
-        
-        Arg types:
-            * **graph** *(NetworkX graph)* - The graph to be embedded.
-        Return types:
-            * **A_tilde** *(Scipy array)* - The normalized adjacency matrix.
-        """
-        A = nx.adjacency_matrix(graph, nodelist = range(graph.number_of_nodes()))
-        D_inverse = self._create_D_inverse(graph) 
-        A_tilde = D_inverse.dot(A)
-        return A_tilde
-    
+    """
+        def _create_A_tilde(self, graph):
+            
+            Creating a sparse normalized adjacency matrix.
+            
+            Arg types:
+                * **graph** *(NetworkX graph)* - The graph to be embedded.
+            Return types:
+                * **A_tilde** *(Scipy array)* - The normalized adjacency matrix.
+            
+            A = nx.adjacency_matrix(graph, nodelist = range(graph.number_of_nodes()))
+            D_inverse = self._create_D_inverse(graph) 
+            A_tilde = D_inverse.dot(A)
+            return A_tilde
+    """ 
     def _create_A_tilde(self, graph):
         #  request the weight from the edges
         A = nx.adjacency_matrix(graph, nodelist=range(graph.number_of_nodes()), weight='weight')
