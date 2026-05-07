@@ -11,10 +11,10 @@ import matplotlib.pyplot as plt
 
 # this is my BALLER turbo grapher, the intent is to graph and quickly show a statistical display of the node distribution within a given accesiblilty csv.
 
-CSV_FILE = "projects/daegu_20000_all_25e/featuresteis.csv"
-OUTPUT = "./projects/daegu_20000_all_25e/"
-LABEL_COL = "daegu_20000_all_25e"
-DISTANCE = 2500  #this is a surprize tool that will help us later. SHOULKD BE RENAMED TO SCORE_LIMIT
+CSV_FILE = "projects/bordeaux_20000_all/featuresteis.csv"
+OUTPUT = "./projects/bordeaux_20000_all//"
+LABEL_COL = "Bordeaux 1500m"
+DISTANCE = 1500  #this is a surprize tool that will help us later. SHOULKD BE RENAMED TO SCORE_LIMIT
 data = pd.read_csv(CSV_FILE)
 ## We read the csv file here, NOTE: this is not the post feather csv, but the pandana output.
 ### the initial version (this one) will only work with single feature .csv files. Later we will insert a function that allows multi col support.
@@ -91,8 +91,7 @@ ax.legend(loc='upper left', ncols=6)
 ax.set_ylim(0, 115)
 
 
-
-plt.show()
+fig.savefig(OUTPUT + LABEL_COL + "_Bar")
 
 # =============================================================================
 # ## now we will use pandas "group by" to sort the values by distance, initially we will use 500m increments. as we expect max tistance to be 1500m or 2000m
