@@ -1,10 +1,10 @@
-<img src="Aberdeen.png" alt="This image shows a PCA (Parametric Charataristic Analysis) diagram of Aberdeen, Scotland. Created from the output generated from the the Feather ML-Algorithm" >
+<img src="feather_order_4.png" alt="This image shows a map with magnitude values calculated from the Feather ML-Algorithm. on the right side is the moving (transport) to the left is all Amenity nodes combined" >
 
-This repository contains a research-oriented project exploring **accessibility analysis for the 15-minute city concept**, with a focus on comparing traditional accessibility tools with a FEATHER based approch.
+This repository contains a research oriented project exploring **accessibility analysis based on the 15-minute city concept**, with a focus on comparing traditional accessibility approched with a FEATHER based approch.
 
 ## Problem Statement
 
-The **15-minute city** is an urban planning concept introduced by Carlos Moreno in 2016. It describes a city where residents can access all essential daily services—such as work, education, healthcare, shopping, and social activities—within a **definitive walking distance** from their home.
+The **15-minute city** is an urban planning concept introduced by Carlos Moreno in 2016. It describes a city where residents can access all essential daily services such as work, education, healthcare, shopping, and social activities within a **definitive walking distance** from their home.
 
 The concept emphasises:
 
@@ -16,7 +16,7 @@ In this project, accessibility is defined as the **ability to reach essential se
 
 ## Project Goal
 
-The goal of this project is to explore and evaluate **new methods for urban accessibility analysis** by leveraging modern graph algorithms—specifically the **FEATHER algorithm**—and comparing them with established tools such as **GOAT (Geo Open Accessibility Tool)**.
+The goal of this project is to explore and evaluate **new methods for urban accessibility analysis** by leveraging modern graph algorithms specifically the **FEATHER algorithm** and comparing them with established tools such as **GOAT (Geo Open Accessibility Tool)**.
 
 The project aims to deliver a **FEATHER-based solution** capable of processing **OpenStreetMap (OSM)** data to produce accessibility analyses comparable to GOAT’s current capabilities.
 
@@ -35,47 +35,61 @@ The project aims to deliver a **FEATHER-based solution** capable of processing *
 
 - Utilize **OpenStreetMap (OSM)** data as the primary spatial data source
 - Apply the **FEATHER algorithm** for graph-based accessibility analysis
-- Compare outputs and metrics against those produced by **GOAT**
+- Compare outputs and metrics against those produced by **Pandana**
 - Document implementation details, assumptions, and limitations
 
 ## Expected Deliverables
 
 - A FEATHER-based accessibility analysis
 - Detailed documentation of the methodology and implementation
-- Comparative results between FEATHER and GOAT
+- Comparative results between FEATHER and PANDANA
 - Discussion of limitations and future improvements
 
 ## How to run codebase Examples
 
-- Go to the bash file located at:
-
-```
-> src > Utils > Automation.sh
-```
-
-- Open the Bash-Script and Edit Following
+This example demonstrates how to generate accessibility graph summaries for Daegu, South Korea using OpenStreetMap data.
 
 ```bash
-# Folder name created for the execution of the calculation
-projectName="Odense"
+#1. Clone the Repository
+git clone https://github.com/MRollin03/FGSAM-FEATHER-Graph-summaries-of-accessibility-maps.git
 
-# Select Either BBOX (Bounding Box) or PLACE https://wiki.openstreetmap.org/wiki/Key:place
-MODE=PLACE #Select either [PLACE , BBOX]
+#2. Navigate to the Utility Scripts
+cd FGSAM-FEATHER-Graph-summaries-of-accessibility-maps/src/Utils
+
+#3. Run the OSM to Feather Converter
+# The following command downloads and processes map data for Daegu, South Korea and stores the generated project files in the projects directory.
+
+python OSM2FeatherConverter.py \
+    --title "Daegu, South Korea" \
+    --type "PLACE" \
+    --place "Daegu, South Korea" \
+    --output "projects"
 ```
 
-- Select either place/location or BBOX (Bounding Box) Mode.
-  use west south east north for the BBOX option and location for the location/place based calculation.
-
+If you are having trouble with the module utils not getting reconized/found write this command into the terminal
 ```bash
-# Coordinates can be foud using hte export tool on OpenStreetMap.org
-west=-2.2865
-south=57.0486
-east=-2.0428
-north=57.
-
-# Remember to replace the spaces with underscores ( _ )
-location="Odense_Municipality"
+  #makes python reconize your internal modules
+  pip install -e .
 ```
+
+
+
+Parameter Overview:
+```bash
+--title	    Name of the generated project
+--type	    Input type (PLACE, BBOX, MULTI_PLACE)
+--place	    The location to download from OpenStreetMap
+--output	Directory where generated files are stored
+```
+
+After the script completes, the processed graph data and related project files will be available inside:
+
+projects/
+
+>[!NOTE]
+>Ensure you have Python and all required dependencies installed before running the script.
+>Internet access is required to fetch OpenStreetMap data.
+>Large locations may take additional processing time depending on system performance. and Overpass API status
 
 ## Literature
 

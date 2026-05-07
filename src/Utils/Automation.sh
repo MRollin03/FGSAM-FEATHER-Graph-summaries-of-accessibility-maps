@@ -31,10 +31,7 @@ else
     python OSM2FeatherConverter.py --type BBOX --bbox "$west" "$south" "$east" "$north" --title "$projectName" --output "$baseDir" --distance $pandana_distance 
 fi
 
-# Fortsæt kun hvis de næste skridt lykkes
-python FEATHER/src/main.py --graph-input "$baseDir""/""$projectName""/FeatherEdges.csv" --feature-input "./""$baseDir""/""$projectName""/featuresteis.csv" --output "./""$baseDir""/""$projectName""/FeatherResult.csv" --eval-points $evalpoints --order $order --theta-max $thetamax  &&
-
-python GraphMaker.py --input "$projectName" --order  $order 
+#python GraphMaker.py --input "$projectName" --order  $order 
 
 
 
