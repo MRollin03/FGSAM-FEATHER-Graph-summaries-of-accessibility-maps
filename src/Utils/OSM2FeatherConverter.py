@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+from types import SimpleNamespace
 import pandas as pd
 import matplotlib.pyplot as plt
-import FeatherMapPlotter
 import osmnx as ox
 import os
 import pandana as pdna
@@ -13,6 +13,13 @@ import matplotlib
 
 from shapely.ops import unary_union, transform
 from shapely.geometry import box
+from FEATHER.src import (
+    main, 
+    utils, 
+    param_parser, 
+    feather
+)
+import FeatherMapPlotter
 
 ox.settings.use_cache = True
 ox.settings.log_console = True
@@ -195,8 +202,28 @@ def Convert(args):
             f.write(f"  Score: {worst_score}\n")
 
     print(f"[info] Saved graph information → {info_path}")
+    
+    
+    # ----------------------------------------------------------------------
+    # FEATHER embedding call
+    # ----------------------------------------------------------------------
+    featherargs = {
+                  'graph_input' : args.output + '/'+ args.title + '/FeatherEdges.csv',
+                  'feature_input': args.output + '/'+ args.title + '/Features.csv',
+                  'output': args.output + '/'+ args.title +  '/FeatherResult.csv', 
+                  'eval_points':args.eval_points,
+                  'order':args.order,
+                  'theta_max':args.theta_max,
+                  'model_type': 'FEATHER',
+                  }
+    
+    main.main(SimpleNamespace(featherargs))
+    
+    # ----------------------------------------------------------------------
+    # PLOT  the Feather Results
+    # ----------------------------------------------------------------------
 
-    FeatherMapPlotter.Draw( G, featherIDtoOSMID)
+    FeatherMapPlotter.Draw(featherargs, G, featherIDtoOSMID)
 
 
 # ---------------------------------------------------------------------------
@@ -298,6 +325,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
+    #- Conversion -#
     parser.add_argument("--title",    required=True)
     parser.add_argument("--output",   required=True)
     parser.add_argument("--distance", type=int, default=2000)
@@ -307,6 +335,11 @@ if __name__ == "__main__":
     parser.add_argument("--place")
     parser.add_argument("--places",   nargs="+")
     parser.add_argument("--solo")
+    
+    #- Feather Settings -#
+    parser.add_argument("--eval-points", default=25)
+    parser.add_argument("--order", default=5)
+    parser.add_argument("--theta-max", default=2.5)
 
     args = parser.parse_args()
 

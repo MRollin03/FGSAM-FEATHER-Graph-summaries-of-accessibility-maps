@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse
+import math
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -59,77 +60,27 @@ def load_graph(args):
 
     return G
 
-
-def build_feather_to_osm_mapping(feather_node_ids, osm_node_ids, featherIDtoOSMID):
-    """
-    Build feather_id -> osm_id mapping.
-
-    Priority:
-      1. Use featherIDtoOSMID dict if provided and non-empty.
-      2. Fall back to positional alignment with a warning.
-    """
-    if featherIDtoOSMID:
-        missing = [fid for fid in feather_node_ids if fid not in featherIDtoOSMID]
-        if missing:
-            print(f"WARNING: {len(missing)} FEATHER node(s) not in featherIDtoOSMID — will render as 0.")
-        print(f"Using explicit featherIDtoOSMID mapping ({len(featherIDtoOSMID)} entries).")
-        return featherIDtoOSMID
-
-    # Positional fallback
-    print("WARNING: No featherIDtoOSMID mapping provided — using positional alignment.")
-    if len(feather_node_ids) != len(osm_node_ids):
-        print(
-            f"WARNING: FEATHER has {len(feather_node_ids)} nodes but OSM graph has "
-            f"{len(osm_node_ids)} nodes. Only the first min(n) nodes will be matched."
-        )
-    n = min(len(feather_node_ids), len(osm_node_ids))
-    return dict(zip(feather_node_ids[:n], osm_node_ids[:n]))
-
+import numpy as np
 
 def precompute_magnitudes(features, osm_node_ids, osmid_to_feather, categories, orders):
-    """
-    Vectorised bulk computation of |real| + |imag| magnitudes.
-
-    Returns
-    -------
-    mag_cache : dict  {(cat, order): np.ndarray shape (len(osm_node_ids),)}
-        Values are aligned to osm_node_ids.
-    """
-    # Build the ordered list of feather IDs that correspond to osm_node_ids.
-    # Missing mappings get None, which we resolve to NaN after reindex.
-    feather_ids = [osmid_to_feather.get(osm_id) for osm_id in osm_node_ids]
-    valid_mask  = np.array([fid is not None for fid in feather_ids])
-    valid_fids  = [fid for fid in feather_ids if fid is not None]
-
-    # Reindex the features DataFrame once so rows are in the same order as
-    # osm_node_ids (unknown feather IDs become all-NaN rows).
-    features_aligned = features.reindex(valid_fids)
-
+    # Gets all of the id's from osm thats a part of the FeatherResult.csv
+    feather_ids = [osmid_to_feather[osm_id] for osm_id in osm_node_ids]
+    
+    f_aligned = features.reindex(feather_ids)
     mag_cache = {}
 
     for cat in categories:
         for order in orders:
-            # --- column selection (done once per (cat, order), not per node) ---
-            real_cols = [c for c in features.columns if f'{cat}_real_{order}' in c]
-            imag_cols = [c for c in features.columns if f'{cat}_img_{order}'  in c]
+            # Seperate the columns by cat order and real/img
+            r_cols = [c for c in f_aligned.columns if f'{cat}_real_{order}' in c]
+            i_cols = [c for c in f_aligned.columns if f'{cat}_img_{order}' in c]
 
-            if not real_cols and not imag_cols:
-                # No matching columns → all zeros
-                mag_cache[(cat, order)] = np.zeros(len(osm_node_ids), dtype=np.float32)
-                continue
-
-            # Bulk abs + sum across matching columns  (shape: n_valid_nodes,)
-            real_sum = (features_aligned[real_cols].abs().sum(axis=1)
-                        if real_cols else pd.Series(0.0, index=features_aligned.index))
-            imag_sum = (features_aligned[imag_cols].abs().sum(axis=1)
-                        if imag_cols else pd.Series(0.0, index=features_aligned.index))
-
-            magnitude_valid = (real_sum + imag_sum).fillna(0.0).to_numpy(dtype=np.float32)
-
-            # Scatter back into a full-length array (zeros for unmapped nodes)
-            full = np.zeros(len(osm_node_ids), dtype=np.float32)
-            full[valid_mask] = magnitude_valid
-            mag_cache[(cat, order)] = full
+            #Calculate hte real and img sum of the evalpoints 
+            r_sum = f_aligned[r_cols].abs().sum(axis=1).values if r_cols else 0
+            i_sum = f_aligned[i_cols].abs().sum(axis=1).values if i_cols else 0
+            
+            #Sum the real and img values together for the combined magnitude
+            mag_cache[(cat, order)] = (r_sum + i_sum)
 
     return mag_cache
 
@@ -138,17 +89,15 @@ def precompute_magnitudes(features, osm_node_ids, osmid_to_feather, categories, 
 # Main draw function
 # ---------------------------------------------------------------------------
 
-def Draw(G, OSMID2Feather):
+def Draw(args, G, OSMID2Feather):
     """
     Parameters
-    ----------
     G              : networkx MultiDiGraph  (OSM road network)
-    OSMID2Feather  : dict {osm_node_id: feather_node_id}
-                     Pass an empty dict / None to fall back to positional alignment.
+    OSMID2Feather  : dict, Dictionary with mapping of OSM to FeatherIDs
     """
 
     # -----------------------------------------------------------------------
-    # PROJECT GRAPH + EXTRACT GEOMETRY
+    # PROJECT GRAPH
     # -----------------------------------------------------------------------
 
     nodes_gdf, edges_gdf = ox.graph_to_gdfs(G)
@@ -158,8 +107,7 @@ def Draw(G, OSMID2Feather):
     node_x = nodes_gdf.geometry.x.to_numpy()
     node_y = nodes_gdf.geometry.y.to_numpy()
 
-    # --- Vectorised edge geometry (avoids iterrows) ---
-    # Each segment ends with a None sentinel so plt.plot draws separate lines.
+    # --- Vectorised edge geometry ---
     flat_ex, flat_ey = [], []
     for geom in edges_gdf.geometry:
         xs, ys = geom.xy
@@ -174,33 +122,18 @@ def Draw(G, OSMID2Feather):
     # LOAD & INDEX FEATHER DATA
     # -----------------------------------------------------------------------
 
-    csv_path = os.path.join('projects', "Daegu, South Korea", 'FeatherResult.csv')
+    csv_path = os.path.join(args.output, args.title, 'FeatherResult.csv')
     print(f"Loading FEATHER features from: {csv_path}")
     features = pd.read_csv(csv_path, index_col=0)
 
     # -----------------------------------------------------------------------
-    # BUILD OSMID → FEATHER MAPPING
+    # PRE-COMPUTE ALL MAGNITUDES
     # -----------------------------------------------------------------------
 
-    if not OSMID2Feather:
-        # pair OSM nodes with feather nodes by position
-        feather_ids = list(features.index)
-        n = min(len(osm_node_ids), len(feather_ids))
-        if len(osm_node_ids) != len(feather_ids):
-            print(
-                f"WARNING: OSM has {len(osm_node_ids)} nodes but FEATHER has "
-                f"{len(feather_ids)} nodes. Matching first {n}."
-            )
-        OSMID2Feather = dict(zip(osm_node_ids[:n], feather_ids[:n]))
-
-    # -----------------------------------------------------------------------
-    # PRE-COMPUTE ALL MAGNITUDES (single bulk pass over the DataFrame)
-    # -----------------------------------------------------------------------
-
-    categories  = ['eating', 'all_pois']
-    cat_labels  = ['Eating', 'All POIs']
-    cat_cmaps   = ['plasma_r', 'Greens']
-    orders      = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19]
+    categories  = ['moving', 'all_pois']
+    cat_labels  = ['Moving', 'All POIs']
+    cat_cmaps   = ['plasma_r','plasma_r']
+    orders      = [0,1,2,3,4,5]
 
     print("Pre-computing magnitudes (vectorised) ...")
     mag_cache = precompute_magnitudes(features, osm_node_ids, OSMID2Feather, categories, orders)
@@ -210,21 +143,21 @@ def Draw(G, OSMID2Feather):
     # OUTPUT DIRECTORY
     # -----------------------------------------------------------------------
 
-    out_dir = os.path.join("projects", "Daegu, South Korea", 'heatmaps')
+    out_dir = os.path.join(args.output, args.title, 'heatmaps')
     os.makedirs(out_dir, exist_ok=True)
 
     # -----------------------------------------------------------------------
     # GENERATE ONE FIGURE PER ORDER
     # -----------------------------------------------------------------------
 
-    # Pre-fetch colormaps once (avoid repeated plt.get_cmap calls in the loop)
+    # Get colormaps
     cmaps = [plt.get_cmap(c) for c in cat_cmaps]
 
     for order in orders:
-        fig, axes = plt.subplots(1, len(categories), figsize=(21, 8), facecolor='#111111')
+        fig, axes = plt.subplots(1, len(categories), figsize=(14, 8), facecolor='#111111')
         fig.suptitle(
             f'FEATHER Feature Magnitudes — Order {order}',
-            fontsize=16, fontweight='bold', color='white', y=1.01
+            fontsize=15, fontweight='bold', color='white', y=1
         )
 
         for col_idx, cat in enumerate(categories):
@@ -237,7 +170,8 @@ def Draw(G, OSMID2Feather):
 
             vals_array = mag_cache[(cat, order)]
             vmin, vmax = vals_array.min(), vals_array.max()
-            norm = mcolors.Normalize(vmin=vmin, vmax=vmax if vmax > vmin else vmin + 1e-9)
+            print("vmin: " + str(vmin) + " vmax: "+ str(vmax))
+            norm = mcolors.Normalize(vmin=vmin, vmax=math.floor(vmax))
 
             # Road network background
             ax.plot(flat_ex, flat_ey, color='#333333', linewidth=0.4,
@@ -245,7 +179,7 @@ def Draw(G, OSMID2Feather):
 
             # Scatter nodes coloured by magnitude
             ax.scatter(node_x, node_y, c=vals_array, cmap=cmap, norm=norm,
-                       s=2, linewidths=0, zorder=2, alpha=0.7)
+                       s=0.5, linewidths=0, zorder=2, alpha=0.55)
 
             ax.set_title(cat_labels[col_idx], fontsize=12, color='white', pad=6)
 
@@ -259,11 +193,11 @@ def Draw(G, OSMID2Feather):
 
         plt.tight_layout()
         out_path = os.path.join(out_dir, f'feather_order_{order}.png')
-        plt.savefig(out_path, facecolor='#111111', bbox_inches='tight', dpi=300)
+        plt.savefig(out_path, facecolor='#111111', bbox_inches='tight', dpi=600)
         print(f"Saved: {out_path}")
         plt.close(fig)
 
-    print(f"\nAll {len(orders)} maps saved to: {out_dir}")
+    print(f"\nAll maps saved to: {out_dir}")
 
 
 # ---------------------------------------------------------------------------
@@ -295,8 +229,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Load the graph (handles BBOX / PLACE / MULTI_PLACE + caching)
     G = load_graph(args)
-
-    # No explicit ID mapping supplied → positional fallback inside Draw()
     Draw(G, OSMID2Feather={})
