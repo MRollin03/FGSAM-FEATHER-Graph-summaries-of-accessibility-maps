@@ -4,6 +4,7 @@
 import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
+import FeatherMapPlotter
 import osmnx as ox
 import os
 import pandana as pdna
@@ -59,19 +60,17 @@ def Convert(args):
     if not os.path.exists(graphml_path):
 
         if args.type == "BBOX":
-            G = ox.graph.graph_from_bbox(args.bbox, simplify=True, network_type="walk")
-
+            G = ox.graph_from_bbox(args.bbox, simplify=True, network_type="walk")
         elif args.type == "PLACE":
-            G = ox.graph.graph_from_place(args.place, simplify=True, network_type="walk")
-
+            G = ox.graph_from_place(args.place, simplify=True, network_type="walk")
         elif args.type == "MULTI_PLACE":
             polygon = get_combined_polygon(args.places)
-            G = ox.graph.graph_from_polygon(polygon, simplify=True, network_type="walk")
+            G = ox.graph_from_polygon(polygon, simplify=True, network_type="walk")
 
-        ox.io.save_graphml(G, graphml_path)
+        ox.save_graphml(G, graphml_path)
 
     else:
-        G = ox.io.load_graphml(graphml_path)
+        G = ox.load_graphml(graphml_path)
 
     G = ox.project_graph(G)
     n, e = ox.graph_to_gdfs(G)
@@ -97,50 +96,32 @@ def Convert(args):
 
     tags = {
         "leisure": [
-            # Outdoor Activities
             "park", "playground", "bathing_place", "garden", "pitch",
             "stadium", "swimming_area", "track",
-            # Physical Exercise
             "fitness_centre", "fitness_station", "sports_centre", "swimming_pool",
         ],
         "amenity": [
-            # Learning
             "college", "school", "library", "kindergarten", "university", "training",
-            # Eating
             "pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten",
-            # Cultural Activities
-            "cinema", "community_centre", "theatre", "arts_centre", "events_venue", "exhibition_centre", "music_venue",
-            # Services
+            "cinema", "community_centre", "theatre", "arts_centre", "events_venue",
+            "exhibition_centre", "music_venue",
             "fire_station", "police", "post_office", "post_box", "townhall", "toilets",
-            # Healthcare
             "clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary",
-            # Financial
             "atm", "bank", "payment_terminal", "payment_centre",
         ],
         "shop": [
-            # Supplies
             "department_store", "general", "mall", "supermarket", "convenience",
             "bakery", "butcher", "greengrocer", "books", "stationery", "clothes",
             "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware",
         ],
-        "public_transport": [
-            # Moving
-            "platform", "station", "stop_position",
-        ],
-        "tourism": [
-            # Cultural Activities
-            "aquarium", "gallery", "museum", "zoo",
-            # Outdoor Activities
-            "picnic_site",
-        ],
+        "public_transport": ["platform", "station", "stop_position"],
+        "tourism": ["aquarium", "gallery", "museum", "zoo", "picnic_site"],
     }
 
     if args.type == "BBOX":
         all_pois = ox.features_from_bbox(args.bbox, tags).to_crs(n.crs)
-
     elif args.type == "PLACE":
         all_pois = ox.features_from_place(args.place, tags).to_crs(n.crs)
-
     elif args.type == "MULTI_PLACE":
         polygon = get_combined_polygon(args.places)
         all_pois = ox.features_from_polygon(polygon, tags).to_crs(n.crs)
@@ -148,63 +129,29 @@ def Convert(args):
     all_pois["geometry"] = all_pois.centroid
 
     # -----------------------------------------------------------------------
-    # ID Mapping
+    # ID Mapping  (OSM ID -> integer 0..N-1)
     # -----------------------------------------------------------------------
-    
-    #  mapping (OSM ID -> Integer 0..N)
+
     featherIDtoOSMID = {osm_id: i for i, osm_id in enumerate(n.index)}
 
-    # Transform nodes (vi skal også bruge de nye ID'er her for at matche edges)
+    # Transform nodes
     nodes_out = n.copy()
     nodes_out.index = nodes_out.index.map(featherIDtoOSMID)
     nodes_out['x'] = nodes_out.geometry.x
     nodes_out['y'] = nodes_out.geometry.y
-    
-    # Gem nodes
-    #nodes_out[['x', 'y']].to_csv(os.path.join(project_dir, "FeatherNodes.csv"), index_label="node_id")
 
-    #  Transform edges
+    # Transform and save edges
     edges_out = e[["u", "v"]].copy()
     edges_out["u"] = edges_out["u"].map(featherIDtoOSMID)
     edges_out["v"] = edges_out["v"].map(featherIDtoOSMID)
     edges_out["length"] = e["length"].round(3)
-    
-    # Gem edges
     edges_out.to_csv(os.path.join(project_dir, "FeatherEdges.csv"), index=False)
-    
 
     # -----------------------------------------------------------------------
     # FEATURES
     # -----------------------------------------------------------------------
 
     nearest_pois = MarkCategoryNodes(network, n, all_pois, featherIDtoOSMID, args)
-    
-    #TODO: IMPLEMENT NEW PLOTTING METHOD
-
-    # -----------------------------------------------------------------------
-    # HEATMAP
-    # -----------------------------------------------------------------------
-
-    # Valg af kolonne til plot
-    column = args.solo if args.solo else "all_pois"
-    label = f"Nodes marked as {column} (1=Yes, 0=No)"
-    
-    # Plot kun noder der er 1 (valgfrit, men ser bedre ud)
-    active_nodes = nearest_pois[nearest_pois[column] == 1]
-
-    active_nodes.plot(
-        ax=ax,
-        column=column,
-        cmap="spring", # Kraftig farve til 1-tallerne
-        markersize=10,
-        alpha=1.0,
-        legend=False
-    )
-    
-    plt.savefig(os.path.join(project_dir, "TESTEROGGRAPH.png"))
-    
-
-   
 
     # -----------------------------------------------------------------------
     # GRAPH INFO
@@ -214,8 +161,7 @@ def Convert(args):
 
     num_nodes = len(n)
     num_edges = len(e)
-    num_pois = len(all_pois)
-
+    num_pois  = len(all_pois)
 
     if args.type == "BBOX":
         west, south, east, north = args.bbox
@@ -224,148 +170,41 @@ def Convert(args):
         area_km2 = all_pois.unary_union.convex_hull.area / 1_000_000
 
     node_density = num_nodes / area_km2 if area_km2 > 0 else 0
-    poi_density = num_pois / area_km2 if area_km2 > 0 else 0
-
-    if "all_pois" in nearest_pois.columns:
-        best_idx = nearest_pois["all_pois"].idxmin()
-        worst_idx = nearest_pois["all_pois"].idxmax()
-
-        best_score = nearest_pois.loc[best_idx, "all_pois"]
-        worst_score = nearest_pois.loc[worst_idx, "all_pois"]
-
-        best_geom = nearest_pois.loc[best_idx].geometry
-        worst_geom = nearest_pois.loc[worst_idx].geometry
-        
-        
-        # Plotting best and worst ndoe
-        ax.scatter(
-            best_geom.x,
-            best_geom.y,
-            c="lime",
-            s=100,
-            marker="o",
-            label="Best node"
-        )
-
-        ax.scatter(
-            worst_geom.x,
-            worst_geom.y,
-            c="lime",
-            s=150,
-            marker="x",
-            label="Worst node"
-        )
-
-        
-    else:
-        best_idx = worst_idx = None
-        
-    
-        
-    plt.savefig(os.path.join(project_dir, filename))
-    plt.close()
-    
+    poi_density  = num_pois  / area_km2 if area_km2 > 0 else 0
 
     with open(info_path, "w", encoding="utf-8") as f:
-            f.write(f"Graph Information for {args.title}\n")
-            f.write(f"===============================\n\n")
-            f.write(f"Nodes: {num_nodes}\nEdges: {num_edges}\nPOIs: {num_pois}\n\n")
-            f.write(f"Area (km^2): {area_km2:.3f}\n")
-            f.write(f"Node density: {node_density:.3f}\n")
-            f.write(f"POI density: {poi_density:.3f}\n")
+        f.write(f"Graph Information for {args.title}\n")
+        f.write(f"===============================\n\n")
+        f.write(f"Nodes: {num_nodes}\nEdges: {num_edges}\nPOIs: {num_pois}\n\n")
+        f.write(f"Area (km^2): {area_km2:.3f}\n")
+        f.write(f"Node density: {node_density:.3f}\n")
+        f.write(f"POI density:  {poi_density:.3f}\n")
 
-            f.write("Best node (highest accessibility):\n")
-            f.write(f"  OSM ID: {best_idx}\n")
-            f.write(f"  Score: {best_score:.2f}\n")
-            f.write(f"  Coordinates: ({best_geom.y:.6f}, {best_geom.x:.6f})\n\n")
+        if "all_pois" in nearest_pois.columns:
+            # all_pois column is a count — higher = more categories present
+            best_idx   = nearest_pois["all_pois"].idxmax()
+            worst_idx  = nearest_pois["all_pois"].idxmin()
+            best_score = nearest_pois.loc[best_idx,  "all_pois"]
+            worst_score= nearest_pois.loc[worst_idx, "all_pois"]
 
-            f.write("Worst node (lowest accessibility):\n")
-            f.write(f"  OSM ID: {worst_idx}\n")
-            f.write(f"  Score: {worst_score:.2f}\n")
+            f.write("\nBest node (most categories covered):\n")
+            f.write(f"  Feather ID: {best_idx}\n")
+            f.write(f"  Score: {best_score}\n")
+            f.write("\nWorst node (fewest categories covered):\n")
+            f.write(f"  Feather ID: {worst_idx}\n")
+            f.write(f"  Score: {worst_score}\n")
 
     print(f"[info] Saved graph information → {info_path}")
 
+    FeatherMapPlotter.Draw( G, featherIDtoOSMID)
+
 
 # ---------------------------------------------------------------------------
-# FEATURES
+# FEATURES — mark which nodes have a POI nearby per category
 # ---------------------------------------------------------------------------
-'''
-
-        def ComputeFeatures(network, n, e, featherIDtoOSMID, all_pois, args):
-
-            def filter_poi(df, col, values):
-                if col in df.columns:
-                    return df[df[col].isin(values)]
-                return pd.DataFrame(columns=df.columns)
-
-            categories = {
-                "outdoor_activities": pd.concat([
-                    filter_poi(all_pois, "leisure", ["park", "playground", "bathing_place", "garden", "pitch", "stadium", "swimming_area", "track"]),
-                    filter_poi(all_pois, "tourism", ["picnic_site"])
-                ]).drop_duplicates(),
-
-                "learning": filter_poi(all_pois, "amenity", ["college", "school", "library", "kindergarten", "university", "training"]),
-
-                "supplies": filter_poi(all_pois, "shop", ["department_store", "general", "mall", "supermarket", "convenience", "bakery", "butcher", "greengrocer", "books", "stationery", "clothes", "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware"]),
-
-                "eating": filter_poi(all_pois, "amenity", ["pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"]),
-
-                "moving": filter_poi(all_pois, "public_transport", ["platform", "station", "stop_position"]),
-
-                "cultural_activities": pd.concat([
-                    filter_poi(all_pois, "amenity", ["cinema", "community_centre", "theatre"]),
-                    filter_poi(all_pois, "tourism", ["aquarium", "gallery", "museum", "zoo"])
-                ]).drop_duplicates(),
-
-                "physical_exercise": filter_poi(all_pois, "leisure", ["fitness_centre", "fitness_station", "sports_centre", "swimming_pool"]),
-
-                "services": filter_poi(all_pois, "amenity", ["fire_station", "police", "post_office", "post_box", "townhall", "toilets"]),
-
-                "healthcare": filter_poi(all_pois, "amenity", ["clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"]),
-
-                "financial": filter_poi(all_pois, "amenity", ["atm", "bank", "payment_terminal", "payment_centre"]),
-            }
-
-            n["all_pois"] = 0
-            frames = []
-
-            for cat, data in categories.items():
-                if data.empty:
-                    continue
-
-                network.set_pois(
-                    category=cat,
-                    maxdist=args.distance,
-                    maxitems=100,
-                    x_col=data.geometry.x,
-                    y_col=data.geometry.y,
-                )
-
-                nearest = network.nearest_pois(
-                    distance=args.distance,
-                    category=cat,
-                    num_pois=5
-                )
-
-                nearest[cat] = nearest.mean(axis=1)
-                n[cat] = nearest[cat]
-                n["all_pois"] += nearest[cat]
-
-                frames.append(nearest[[cat]])
-
-            if frames:
-                n["all_pois"] /= len(frames)
-                frames.append(n["all_pois"])
-
-            featurez = pd.concat(frames, axis=1)
-            featurez.index = featurez.index.map(featherIDtoOSMID)
-            featurez.to_csv(os.path.join(args.output, args.title, "featuresteis.csv"), index=False)
-
-            return n, featurez
-        '''
 
 def MarkCategoryNodes(network, n, all_pois, featherIDtoOSMID, args):
-    
+
     def filter_poi(df, col, values):
         if col in df.columns:
             return df[df[col].isin(values)]
@@ -373,55 +212,80 @@ def MarkCategoryNodes(network, n, all_pois, featherIDtoOSMID, args):
 
     categories = {
         "outdoor_activities": pd.concat([
-            filter_poi(all_pois, "leisure", ["park", "playground", "bathing_place", "garden", "pitch", "stadium", "swimming_area", "track"]),
-            filter_poi(all_pois, "tourism", ["picnic_site"])
+            filter_poi(all_pois, "leisure", ["park", "playground", "bathing_place",
+                                             "garden", "pitch", "stadium",
+                                             "swimming_area", "track"]),
+            filter_poi(all_pois, "tourism", ["picnic_site"]),
         ]).drop_duplicates(),
 
-        "learning": filter_poi(all_pois, "amenity", ["college", "school", "library", "kindergarten", "university", "training"]),
+        "learning": filter_poi(all_pois, "amenity", [
+            "college", "school", "library", "kindergarten", "university", "training"
+        ]),
 
-        "supplies": filter_poi(all_pois, "shop", ["department_store", "general", "mall", "supermarket", "convenience", "bakery", "butcher", "greengrocer", "books", "stationery", "clothes", "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware"]),
+        "supplies": filter_poi(all_pois, "shop", [
+            "department_store", "general", "mall", "supermarket", "convenience",
+            "bakery", "butcher", "greengrocer", "books", "stationery", "clothes",
+            "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware",
+        ]),
 
-        "eating": filter_poi(all_pois, "amenity", ["pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"]),
+        "eating": filter_poi(all_pois, "amenity", [
+            "pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"
+        ]),
 
-        "moving": filter_poi(all_pois, "public_transport", ["platform", "station", "stop_position"]),
+        "moving": filter_poi(all_pois, "public_transport", [
+            "platform", "station", "stop_position"
+        ]),
 
         "cultural_activities": pd.concat([
             filter_poi(all_pois, "amenity", ["cinema", "community_centre", "theatre"]),
-            filter_poi(all_pois, "tourism", ["aquarium", "gallery", "museum", "zoo"])
+            filter_poi(all_pois, "tourism", ["aquarium", "gallery", "museum", "zoo"]),
         ]).drop_duplicates(),
 
-        "physical_exercise": filter_poi(all_pois, "leisure", ["fitness_centre", "fitness_station", "sports_centre", "swimming_pool"]),
+        "physical_exercise": filter_poi(all_pois, "leisure", [
+            "fitness_centre", "fitness_station", "sports_centre", "swimming_pool"
+        ]),
 
-        "services": filter_poi(all_pois, "amenity", ["fire_station", "police", "post_office", "post_box", "townhall", "toilets"]),
+        "services": filter_poi(all_pois, "amenity", [
+            "fire_station", "police", "post_office", "post_box", "townhall", "toilets"
+        ]),
 
-        "healthcare": filter_poi(all_pois, "amenity", ["clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"]),
+        "healthcare": filter_poi(all_pois, "amenity", [
+            "clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"
+        ]),
 
-        "financial": filter_poi(all_pois, "amenity", ["atm", "bank", "payment_terminal", "payment_centre"]),
+        "financial": filter_poi(all_pois, "amenity", [
+            "atm", "bank", "payment_terminal", "payment_centre"
+        ]),
     }
-    
-    # Opret en kopi af noderne til resultatet
-    n_features = pd.DataFrame(index=n.index)
-    
-    # Loop gennem hver kategori
+
+    # Start with a zero DataFrame indexed by OSM node IDs
+    n_features = pd.DataFrame(0, index=n.index, columns=list(categories.keys()))
+
     for cat, data in categories.items():
         if data.empty:
-            n_features[cat] = 0
+            print(f"[warn] No POIs found for category '{cat}' — column will be all 0.")
             continue
-            
-        # Find de nærmeste node for POIs
-        poi_nodes = network.get_node_ids(data.geometry.x, data.geometry.y)
-        
-        # Marker disse noder med 1 (standard er 0)
-        n_features[cat] = 0
-        n_features.loc[ cat] = 1
 
-    # Lav en samlet "is_amenity" kolonne (1 hvis den tilhører mindst én kategori)
-    n_features["any_amenity"] = (n_features.sum(axis=1) > 0).astype(int)
+        # get_node_ids returns the nearest network node ID for each POI
+        poi_node_ids = network.get_node_ids(
+            data.geometry.x,
+            data.geometry.y,
+        )
 
-    # Map ID'er og gem
+        # Mark every node that is the nearest node to at least one POI
+        valid_ids = poi_node_ids[poi_node_ids.isin(n_features.index)]
+        n_features.loc[valid_ids, cat] = 1
+
+    # Sum across categories: how many categories are reachable from each node
+    n_features["all_pois"] = n_features[list(categories.keys())].sum(axis=1)
+
+    # Remap OSM IDs → Feather integer IDs before saving
     n_features.index = n_features.index.map(featherIDtoOSMID)
-    n_features.to_csv(os.path.join(args.output, args.title, "category_nodes.csv"),index=False)
-    
+    n_features.index.name = "node_id"
+
+    out_path = os.path.join(args.output, args.title, "Features.csv")
+    n_features.to_csv(out_path)
+    print(f"[info] Saved features → {out_path}")
 
     return n_features
 
@@ -434,25 +298,20 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--title", required=True)
-    parser.add_argument("--output", required=True)
+    parser.add_argument("--title",    required=True)
+    parser.add_argument("--output",   required=True)
     parser.add_argument("--distance", type=int, default=2000)
-
-    parser.add_argument("--type", required=True, choices=["BBOX", "PLACE", "MULTI_PLACE"])
-    parser.add_argument("--bbox", nargs=4, type=float)
+    parser.add_argument("--type",     required=True,
+                        choices=["BBOX", "PLACE", "MULTI_PLACE"])
+    parser.add_argument("--bbox",     nargs=4, type=float)
     parser.add_argument("--place")
-    parser.add_argument("--places", nargs="+")
+    parser.add_argument("--places",   nargs="+")
     parser.add_argument("--solo")
 
     args = parser.parse_args()
 
-    if args.type == "BBOX" and not args.bbox:
-        raise SystemExit("BBOX requires --bbox")
-
-    if args.type == "PLACE" and not args.place:
-        raise SystemExit("PLACE requires --place")
-
-    if args.type == "MULTI_PLACE" and not args.places:
-        raise SystemExit("MULTI_PLACE requires --places")
+    if args.type == "BBOX"        and not args.bbox:   raise SystemExit("BBOX requires --bbox")
+    if args.type == "PLACE"       and not args.place:  raise SystemExit("PLACE requires --place")
+    if args.type == "MULTI_PLACE" and not args.places: raise SystemExit("MULTI_PLACE requires --places")
 
     Convert(args)
