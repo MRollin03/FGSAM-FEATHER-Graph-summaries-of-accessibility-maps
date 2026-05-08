@@ -208,6 +208,7 @@ def Convert(args):
     # FEATHER embedding call
     # ----------------------------------------------------------------------
     featherargs = {
+                  'title': args.title,
                   'graph_input' : args.output + '/'+ args.title + '/FeatherEdges.csv',
                   'feature_input': args.output + '/'+ args.title + '/Features.csv',
                   'output': args.output + '/'+ args.title +  '/FeatherResult.csv', 
@@ -223,7 +224,7 @@ def Convert(args):
     # PLOT  the Feather Results
     # ----------------------------------------------------------------------
 
-    FeatherMapPlotter.Draw(featherargs, G, featherIDtoOSMID)
+    FeatherMapPlotter.Draw(SimpleNamespace(featherargs), G, featherIDtoOSMID)
 
 
 # ---------------------------------------------------------------------------
