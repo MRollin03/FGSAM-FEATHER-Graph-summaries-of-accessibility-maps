@@ -122,9 +122,8 @@ def Draw(args, G, OSMID2Feather):
     # LOAD & INDEX FEATHER DATA
     # -----------------------------------------------------------------------
 
-    csv_path = os.path.join(args.output, args.title, 'FeatherResult.csv')
-    print(f"Loading FEATHER features from: {csv_path}")
-    features = pd.read_csv(csv_path, index_col=0)
+    print(f"Loading FEATHER features from: {args.output}")
+    features = pd.read_csv(args.output, index_col=0)
 
     # -----------------------------------------------------------------------
     # PRE-COMPUTE ALL MAGNITUDES

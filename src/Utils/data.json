@@ -27,6 +27,9 @@
     }
   },
   {
+    "name": "Ishikari subprefecture,  japan"
+  },
+  {
     "name": "Gothenburg, Sweden",
     "bbox": {
       "west": 11.6977,
@@ -104,5 +107,4 @@
   {
     "name": "Københavns Kommune, Denmark"
   }
- 
 ]
