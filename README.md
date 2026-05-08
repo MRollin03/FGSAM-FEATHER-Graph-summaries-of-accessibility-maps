@@ -68,8 +68,8 @@ python OSM2FeatherConverter.py \
 
 If you are having trouble with the module utils not getting reconized/found write this command into the terminal
 ```bash
-  #makes python reconize your internal modules
-  pip install -e .
+  # make current terminal's python session reconize your internal modules
+  export PYTHONPATH=$PYTHONPATH:$(pwd)/FEATHER/src
 ```
 
 
