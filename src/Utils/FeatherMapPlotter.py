@@ -97,7 +97,7 @@ def Draw(args, G, OSMID2Feather):
     """
 
     # -----------------------------------------------------------------------
-    # PROJECT GRAPH
+    # LOAD GRAPH
     # -----------------------------------------------------------------------
 
     nodes_gdf, edges_gdf = ox.graph_to_gdfs(G)
@@ -129,10 +129,8 @@ def Draw(args, G, OSMID2Feather):
     # PRE-COMPUTE ALL MAGNITUDES
     # -----------------------------------------------------------------------
 
-    categories  = ['moving', 'all_pois']
-    cat_labels  = ['Moving', 'All POIs']
-    cat_cmaps   = ['plasma_r','plasma_r']
-    orders      = [0,1,2,3,4,5]
+    categories  = ['moving', "outdoor_activities", "learning","supplies", "eating", "cultural_activities","physical_exercise","financial", "healthcare", "services",'all_pois']
+    orders      = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17.18,19,20] #Which orders you wish to be printed
 
     print("Pre-computing magnitudes (vectorised) ...")
     mag_cache = precompute_magnitudes(features, osm_node_ids, OSMID2Feather, categories, orders)
@@ -142,45 +140,43 @@ def Draw(args, G, OSMID2Feather):
     # OUTPUT DIRECTORY
     # -----------------------------------------------------------------------
 
-    out_dir = os.path.join(args.output, args.title, 'heatmaps')
+    out_dir = os.path.join(args.BaseProjDir, args.title, 'heatmaps')
     os.makedirs(out_dir, exist_ok=True)
-
+        
     # -----------------------------------------------------------------------
-    # GENERATE ONE FIGURE PER ORDER
+    # GENERATE ONE FIGURE PER ORDER PER CATEGORY
     # -----------------------------------------------------------------------
 
-    # Get colormaps
-    cmaps = [plt.get_cmap(c) for c in cat_cmaps]
+    cmap = plt.get_cmap("plasma_r")
 
     for order in orders:
-        fig, axes = plt.subplots(1, len(categories), figsize=(14, 8), facecolor='#111111')
-        fig.suptitle(
-            f'FEATHER Feature Magnitudes — Order {order}',
-            fontsize=15, fontweight='bold', color='white', y=1
-        )
-
         for col_idx, cat in enumerate(categories):
-            ax   = axes[col_idx]
-            cmap = cmaps[col_idx]
-
+            # Create figure for each category and real/img
+            fig, ax = plt.subplots(figsize=(7, 5), facecolor='#111111')
+            
             ax.set_facecolor('#111111')
             ax.set_aspect('equal')
             ax.axis('off')
 
-            vals_array = mag_cache[(cat, order)]
-            vmin, vmax = vals_array.min(), vals_array.max()
-            print("vmin: " + str(vmin) + " vmax: "+ str(vmax))
-            norm = mcolors.Normalize(vmin=vmin, vmax=math.floor(vmax))
+            # HEader text for figure
+            fig.suptitle(f'FEATHER Feature {cat} Magnitudes — Order {order}', 
+                        fontsize=15, fontweight='bold', color='white', y=0.95)
 
-            # Road network background
-            ax.plot(flat_ex, flat_ey, color='#333333', linewidth=0.4,
+            vals_array = mag_cache[(cat, order)]
+            
+            
+            # Normalizing color values 
+            vmin = np.percentile(vals_array, 5)
+            vmax = np.percentile(vals_array, 97)
+            norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+
+            # Road network
+            ax.plot(flat_ex, flat_ey, color='#333333', linewidth=0.4, 
                     solid_capstyle='round', zorder=1)
 
-            # Scatter nodes coloured by magnitude
-            ax.scatter(node_x, node_y, c=vals_array, cmap=cmap, norm=norm,
-                       s=0.5, linewidths=0, zorder=2, alpha=0.55)
-
-            ax.set_title(cat_labels[col_idx], fontsize=12, color='white', pad=6)
+            # Nodes
+            ax.scatter(node_x, node_y, c=vals_array, cmap=cmap, norm=norm, 
+                    s=0.5, linewidths=0, zorder=2, alpha=0.55)
 
             # Colorbar
             sm = cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -190,43 +186,16 @@ def Draw(args, G, OSMID2Feather):
             plt.setp(cbar.ax.yaxis.get_ticklabels(), color='white')
             cbar.set_label('|real| + |imag| magnitude', color='white', fontsize=9)
 
-        plt.tight_layout()
-        out_path = os.path.join(out_dir, f'feather_order_{order}.png')
-        plt.savefig(out_path, facecolor='#111111', bbox_inches='tight', dpi=600)
-        print(f"Saved: {out_path}")
-        plt.close(fig)
+            # Save 
+            plt.tight_layout()
+            
+            cat_dir = os.path.join(out_dir, cat)
+            os.makedirs(cat_dir, exist_ok=True) # Sikrer at mappen findes
+            
+            out_path = os.path.join(cat_dir, f'feather_order_{order}.png')
+            plt.savefig(out_path, facecolor='#111111', bbox_inches='tight', dpi=600)
+            plt.close(fig) 
+            
+            print(f"Saved: {out_path}")
 
     print(f"\nAll maps saved to: {out_dir}")
-
-
-# ---------------------------------------------------------------------------
-# CLI entry point
-# ---------------------------------------------------------------------------
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(
-        description="Draw FEATHER feature magnitudes on an OSM road network."
-    )
-    parser.add_argument("--title",  required=True,
-                        help="Project name — also resolves projects/<title>/FeatherResult.csv")
-    parser.add_argument("--output", required=True,
-                        help="Root output directory")
-    parser.add_argument("--type",   required=True,
-                        choices=["BBOX", "PLACE", "MULTI_PLACE"],
-                        help="How to define the map area")
-    parser.add_argument("--graph",  required=True,
-                        help="Path to .graphml file. Loaded if it exists; downloaded + saved there if not.")
-
-    parser.add_argument("--place",  default=None,
-                        help="Place name for PLACE mode (e.g. 'Daegu, South Korea')")
-    parser.add_argument("--places", nargs="+", default=None,
-                        help="List of place names for MULTI_PLACE mode")
-    parser.add_argument("--bbox",   nargs=4, type=float, default=None,
-                        metavar=("NORTH", "SOUTH", "EAST", "WEST"),
-                        help="Bounding box for BBOX mode")
-
-    args = parser.parse_args()
-
-    G = load_graph(args)
-    Draw(G, OSMID2Feather={})

@@ -203,27 +203,27 @@ def Convert(args):
 
     print(f"[info] Saved graph information → {info_path}")
     
-    
     # ----------------------------------------------------------------------
     # FEATHER embedding call
     # ----------------------------------------------------------------------
     featherargs = {
                   'title': args.title,
+                  'BaseProjDir': args.output,
                   'graph_input' : args.output + '/'+ args.title + '/FeatherEdges.csv',
                   'feature_input': args.output + '/'+ args.title + '/Features.csv',
                   'output': args.output + '/'+ args.title +  '/FeatherResult.csv', 
                   'eval_points':args.eval_points,
-                  'order':args.order,
+                  'order': int(args.order),
                   'theta_max':args.theta_max,
                   'model_type': 'FEATHER',
                   }
     
-    main.main(SimpleNamespace(featherargs))
+    if not os.path.exists(args.output):
+        main.main(SimpleNamespace(**featherargs))
     
     # ----------------------------------------------------------------------
     # PLOT  the Feather Results
     # ----------------------------------------------------------------------
-
     FeatherMapPlotter.Draw(SimpleNamespace(featherargs), G, featherIDtoOSMID)
 
 

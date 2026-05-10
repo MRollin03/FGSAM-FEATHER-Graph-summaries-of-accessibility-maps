@@ -1,6 +1,6 @@
 [
   {
-    "order": 5,
+    "order": 10,
     "thetamax": 2.5,
     "evalpoints": 25,
     "output": "projects"
