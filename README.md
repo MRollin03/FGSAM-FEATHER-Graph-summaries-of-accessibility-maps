@@ -104,4 +104,44 @@ projects/
 
 ## License
 
-This project is intended for academic and research purposes. Licensing details will be added once finalised.
+This project is intended for academic and research purposes. Licensing details will be added  once finalised.
+
+## User Guide
+You can run our pipeline from the Automation.sh or AutomationWin.bat files, depending on wether you use Linux/Mac or Windows respectively.
+This guide will be showcasing the AutomationWin.bat file, but the process is the exact same for Automation.sh, the difference is just syntax.
+
+You must provide the pipeline with these values:
+<img width="391" height="147" alt="image" src="https://github.com/user-attachments/assets/96891f90-1fe4-44c5-b655-1055be547396" />
+```
+ProjectName = <the name of your project>
+Basedir = the directory which act as root for the pipeline
+Mode = either BBOX or PLACE depending on your type of query
+```
+If you use BBOX mode, then you must include the coordinates (north, east, west, south), if you use place you must fill out location with a valid OSM query such as:: ```Copenhagen_Municipality,Denmark```
+
+### Options for OSM2FeatherConverter
+The OSM2FEATHERConverter handles the osm database queries and converts the data to a FEATHER friendly format. There is provide these command lines:
+```
+--title   STR   Name of project
+--type   STR   BBOX or PLACE 
+--bbox   float  Numargs = 4  Bounding box coordinates   Only used when type is BBOX
+--place   STR   Place name   Only used when type is PLACE
+--solo   STR   the feature   Used if only one category is deciered   If NONE all categories will be accounted for.
+--distance  int   Name of project   The distance to look for out 20 pois per cat, this is alos used as vmax for the heatmap grap
+--output   STR   output direectory for the project folder
+```
+
+### Options for NodeEmbedding
+```
+--title   STR   Name of project
+--input   STR   Path to input 
+--output   STR   output direectory for the project folder
+```
+
+The options for FEATHER can be found here: https://github.com/benedekrozemberczki/FEATHER/blob/master/README.md
+
+### Graphs
+
+
+
+

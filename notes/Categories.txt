@@ -1,0 +1,91 @@
+outdoor activities (Leisure)
+- park
+- playground
+- bathing_place
+- garden
+- pitch
+- stadium
+- swimming_area
+- track
+- picnic_site 
+
+learning
+- college
+- school
+- library
+- kindergarten
+- university
+- training
+
+supplies (shop)
+- department_store
+- general
+- mall
+- supermarket
+- convenience
+- bakery
+- butcher
+- greengrocer
+- books
+- stationary
+- clothes
+- shoes
+- appliance
+- doityourself
+- furniture
+- electronics
+- houseware
+
+eating
+- pub
+- cafe
+- restaurant
+- fast_food
+- food_court
+- biergarten
+
+moving
+- public_transport=platform (This takes everything, no seperation of type ei. buses, trains, planes etc.)
+- public_transport=station
+- public_transport=stop_position
+
+cultural activities
+--- (amenities) ---
+- cinema
+- community_centre
+- theatre
+--- (tourism) --- 
+- aquarium
+- gallery
+- museum
+- zoo
+
+
+physical exercise
+--- (Leisure) ---
+- fitness_centre
+- fintess_station
+- sports_centre
+- swimming_pool
+
+services
+- fire_station
+- police
+- post_office (there is one that is "post_office=post_partner")
+- post_box
+- townhall
+- toilets
+
+healthcare
+- clinic
+- dentist
+- doctors
+- hospital
+- pharmacy
+- vetinary
+
+financial
+- atm
+- bank
+- payment_terminal
+- payment_centre
