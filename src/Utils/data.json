@@ -1,0 +1,110 @@
+[
+  {
+    "order": 10,
+    "thetamax": 2.5,
+    "evalpoints": 25,
+    "output": "projects"
+  },
+  {
+    "name": "Bordeaux Métropole, France"
+  },
+  {
+    "name": "Washington DC",
+    "bbox": {
+      "west": -77.0887,
+      "south": 38.8496,
+      "east": -76.963,
+      "north": 38.953
+    }
+  },
+  {
+    "name": "Aberdeen, Scotland",
+    "bbox": {
+      "west": -2.2392,
+      "south": 57.0467,
+      "east": -2.0407,
+      "north": 57.2289
+    }
+  },
+  {
+    "name": "Ishikari subprefecture,  japan"
+  },
+  {
+    "name": "Gothenburg, Sweden",
+    "bbox": {
+      "west": 11.6977,
+      "south": 57.6108,
+      "east": 12.1797,
+      "north": 57.8024
+    }
+  },
+  {
+    "name": "Philadelphia, Pennsylvania",
+    "bbox": {
+      "west": -75.2879,
+      "south": 39.8344,
+      "east": -75.0002,
+      "north": 40.0644
+    }
+  },
+  {
+    "name": "Los Angeles, California",
+    "bbox": {
+      "west": -118.4752,
+      "south": 33.7004,
+      "east": -117.8064,
+      "north": 34.0731
+    }
+  },
+  {
+    "name": "Mexico City, Mexico"
+  },
+  {
+    "name": "Greater Melbourne, Australia"
+  },
+  {
+    "name": "Copenhagen, Denmark"
+  },
+  {
+    "name": "Daegu, South Korea"
+  },
+  {
+    "name": "Wuhan, Hubei, China"
+  },
+  {
+    "name": "Warsaw, Masovian Voivodeship, Poland"
+  },
+  {
+    "name": "aachen germany"
+  },
+  {
+    "name": "Rome"
+  },
+  {
+    "name": "Bordeaux Métropole, France"
+  },
+  {
+    "name": "Washington, District of Columbia"
+  },
+  {
+    "name": "Aberdeen City, Scotland"
+  },
+  {
+    "name": "Göteborgs kommun, Sweden"
+  },
+  {
+    "name": "Philadelphia, Pennsylvania"
+  },
+  {
+    "name": "Los Angeles, California"
+  },
+  {
+    "name": "Ciudad de México, Mexico"
+  },
+  {
+    "name": "Greater Melbourne, Victoria"
+  },
+  {
+    "name": "Københavns Kommune, Denmark"
+  }
+]
