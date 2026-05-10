@@ -20,11 +20,14 @@ from FEATHER.src import (
     feather
 )
 import FeatherMapPlotter
+import PandanaPlotter
 
 ox.settings.use_cache = True
 ox.settings.log_console = True
 ox.settings.timeout = 420
 matplotlib.use('Agg')
+
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -134,6 +137,59 @@ def Convert(args):
         all_pois = ox.features_from_polygon(polygon, tags).to_crs(n.crs)
 
     all_pois["geometry"] = all_pois.centroid
+    
+    def filter_poi(df, col, values):
+        if col in df.columns:
+            return df[df[col].isin(values)]
+        return pd.DataFrame(columns=df.columns)
+
+    categories = {
+            "outdoor_activities": pd.concat([
+                filter_poi(all_pois, "leisure", ["park", "playground", "bathing_place",
+                                                "garden", "pitch", "stadium",
+                                                "swimming_area", "track"]),
+                filter_poi(all_pois, "tourism", ["picnic_site"]),
+            ]).drop_duplicates(),
+
+            "learning": filter_poi(all_pois, "amenity", [
+                "college", "school", "library", "kindergarten", "university", "training"
+            ]),
+
+            "supplies": filter_poi(all_pois, "shop", [
+                "department_store", "general", "mall", "supermarket", "convenience",
+                "bakery", "butcher", "greengrocer", "books", "stationery", "clothes",
+                "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware",
+            ]),
+
+            "eating": filter_poi(all_pois, "amenity", [
+                "pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"
+            ]),
+
+            "moving": filter_poi(all_pois, "public_transport", [
+                "platform", "station", "stop_position"
+            ]),
+
+            "cultural_activities": pd.concat([
+                filter_poi(all_pois, "amenity", ["cinema", "community_centre", "theatre"]),
+                filter_poi(all_pois, "tourism", ["aquarium", "gallery", "museum", "zoo"]),
+            ]).drop_duplicates(),
+
+            "physical_exercise": filter_poi(all_pois, "leisure", [
+                "fitness_centre", "fitness_station", "sports_centre", "swimming_pool"
+            ]),
+
+            "services": filter_poi(all_pois, "amenity", [
+                "fire_station", "police", "post_office", "post_box", "townhall", "toilets"
+            ]),
+
+            "healthcare": filter_poi(all_pois, "amenity", [
+                "clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"
+            ]),
+
+            "financial": filter_poi(all_pois, "amenity", [
+                "atm", "bank", "payment_terminal", "payment_centre"
+            ]),
+        }
 
     # -----------------------------------------------------------------------
     # ID Mapping  (OSM ID -> integer 0..N-1)
@@ -157,11 +213,17 @@ def Convert(args):
     # -----------------------------------------------------------------------
     # FEATURES
     # -----------------------------------------------------------------------
-
-    nearest_pois = MarkCategoryNodes(network, n, all_pois, featherIDtoOSMID, args)
+    
+    if args.pandana > 0 :
+        print("Pandana Feature Vectorization (SLOW!)")
+        nearest_pois = PandanaSP(network, n, featherIDtoOSMID, categories, args )
+        PandanaPlotter.Draw(G, nearest_pois, n, args)
+    else :
+        print("Binary Feature Vectorization")
+        nearest_pois = MarkCategoryNodes(network, n, categories, featherIDtoOSMID, args)
 
     # -----------------------------------------------------------------------
-    # GRAPH INFO
+    # GRAPH INFO FILE (Gathers infomation about graph)
     # -----------------------------------------------------------------------
 
     info_path = os.path.join(project_dir, "graph_info.txt")
@@ -206,6 +268,7 @@ def Convert(args):
     # ----------------------------------------------------------------------
     # FEATHER embedding call
     # ----------------------------------------------------------------------
+    
     featherargs = {
                   'title': args.title,
                   'BaseProjDir': args.output,
@@ -218,7 +281,7 @@ def Convert(args):
                   'model_type': 'FEATHER',
                   }
     
-    if not os.path.exists(args.output):
+    if not os.path.exists(args.output + '/'+ args.title + '/FeatherResult.csv'):
         main.main(SimpleNamespace(**featherargs))
     
     # ----------------------------------------------------------------------
@@ -231,60 +294,8 @@ def Convert(args):
 # FEATURES — mark which nodes have a POI nearby per category
 # ---------------------------------------------------------------------------
 
-def MarkCategoryNodes(network, n, all_pois, featherIDtoOSMID, args):
-
-    def filter_poi(df, col, values):
-        if col in df.columns:
-            return df[df[col].isin(values)]
-        return pd.DataFrame(columns=df.columns)
-
-    categories = {
-        "outdoor_activities": pd.concat([
-            filter_poi(all_pois, "leisure", ["park", "playground", "bathing_place",
-                                             "garden", "pitch", "stadium",
-                                             "swimming_area", "track"]),
-            filter_poi(all_pois, "tourism", ["picnic_site"]),
-        ]).drop_duplicates(),
-
-        "learning": filter_poi(all_pois, "amenity", [
-            "college", "school", "library", "kindergarten", "university", "training"
-        ]),
-
-        "supplies": filter_poi(all_pois, "shop", [
-            "department_store", "general", "mall", "supermarket", "convenience",
-            "bakery", "butcher", "greengrocer", "books", "stationery", "clothes",
-            "shoes", "appliance", "doityourself", "furniture", "electronics", "houseware",
-        ]),
-
-        "eating": filter_poi(all_pois, "amenity", [
-            "pub", "cafe", "restaurant", "fast_food", "food_court", "biergarten"
-        ]),
-
-        "moving": filter_poi(all_pois, "public_transport", [
-            "platform", "station", "stop_position"
-        ]),
-
-        "cultural_activities": pd.concat([
-            filter_poi(all_pois, "amenity", ["cinema", "community_centre", "theatre"]),
-            filter_poi(all_pois, "tourism", ["aquarium", "gallery", "museum", "zoo"]),
-        ]).drop_duplicates(),
-
-        "physical_exercise": filter_poi(all_pois, "leisure", [
-            "fitness_centre", "fitness_station", "sports_centre", "swimming_pool"
-        ]),
-
-        "services": filter_poi(all_pois, "amenity", [
-            "fire_station", "police", "post_office", "post_box", "townhall", "toilets"
-        ]),
-
-        "healthcare": filter_poi(all_pois, "amenity", [
-            "clinic", "dentist", "doctors", "hospital", "pharmacy", "veterinary"
-        ]),
-
-        "financial": filter_poi(all_pois, "amenity", [
-            "atm", "bank", "payment_terminal", "payment_centre"
-        ]),
-    }
+# No Shortpath calculations (aka "no pandana")
+def MarkCategoryNodes(network, n, categories, featherIDtoOSMID, args):
 
     # Start with a zero DataFrame indexed by OSM node IDs
     n_features = pd.DataFrame(0, index=n.index, columns=list(categories.keys()))
@@ -304,10 +315,10 @@ def MarkCategoryNodes(network, n, all_pois, featherIDtoOSMID, args):
         valid_ids = poi_node_ids[poi_node_ids.isin(n_features.index)]
         n_features.loc[valid_ids, cat] = 1
 
-    # Sum across categories: how many categories are reachable from each node
+    # Sum across categories (for nodes with multiple Amenities associated to it)
     n_features["all_pois"] = n_features[list(categories.keys())].sum(axis=1)
 
-    # Remap OSM IDs → Feather integer IDs before saving
+    # Remap OSM IDs to  Feather integer IDs before saving
     n_features.index = n_features.index.map(featherIDtoOSMID)
     n_features.index.name = "node_id"
 
@@ -317,6 +328,77 @@ def MarkCategoryNodes(network, n, all_pois, featherIDtoOSMID, args):
 
     return n_features
 
+def PandanaSP(network, n, featherIDtoOSMID, categories, args):
+    
+    n["all_pois"] = 0
+    
+    frames = []
+    if args.solo == None:
+        for cat, data in categories.items():
+            if data.empty:
+                continue
+    
+            network.set_pois(
+                category=cat,
+                maxdist=args.distance,
+                maxitems=1000,
+                x_col=data.geometry.x,
+                y_col=data.geometry.y,
+            )
+    
+            nearest_pois = network.nearest_pois(
+                distance=args.distance,
+                category=cat,
+                num_pois=args.pandana,
+            )
+            nearest_pois[cat] = nearest_pois.sum(axis=1)
+            nearest_pois = nearest_pois.iloc[:,-1:].truediv(args.pandana).round(3)
+            
+            n["all_pois"] += nearest_pois[cat]
+            
+            frames.append(nearest_pois)
+    else:
+        for cat, data in categories.items():
+            if data.empty:
+                continue
+            if cat == args.solo:
+                network.set_pois(
+                    category=args.solo,
+                    maxdist=args.distance,
+                    maxitems=1000,
+                    x_col=data.geometry.x,
+                    y_col=data.geometry.y,
+                )
+        
+                nearest_pois = network.nearest_pois(
+                    distance=args.distance,
+                    category=args.solo,
+                    num_pois=args.pandana,
+                )
+                
+                nearest_pois[args.solo] = nearest_pois.sum(axis=1)
+                nearest_pois = nearest_pois.iloc[:,-1:].truediv(args.pandana)
+                n[args.solo] = nearest_pois[args.solo]
+                frames.append(nearest_pois)
+    if not frames:
+        raise RuntimeError("No POI categories had any data — feature CSV not written.")
+    n["all_pois"] = n["all_pois"].truediv(len(frames))
+    if args.solo == None:
+        frames.append(n["all_pois"])    
+    featurez = pd.concat(frames, axis=1, sort=False)
+    featurez.index = featurez.index.map(featherIDtoOSMID)
+    featurez.sort_index(inplace=True)
+    featurez.index.name = None
+    # EVIL code below, NOTE: this is meant to be used with a 10m distance in nearest_pois!
+    # it should be noted that these fucked upo and evil functions replaces all instances of FALSE with the given value.
+    #featurezz = featurez.where(featurez < 10,0) # all cells with no features within 10m are 10! so we replace em with zeroes
+    #featurezz= featurez.where(featurez < 1,1) #replaces everything not below 1 with 1, now we have our evil and fucked up feature matrix
+    #featurezz.to_csv("./"+ args.output + "/" + args.title + "/featuresEvil.csv", index=False)
+    featurez.to_csv("./"+ args.output + "/" + args.title + "/Features.csv", index=False)
+
+    return n
+
+    
 
 # ---------------------------------------------------------------------------
 # CLI
@@ -336,6 +418,9 @@ if __name__ == "__main__":
     parser.add_argument("--place")
     parser.add_argument("--places",   nargs="+")
     parser.add_argument("--solo")
+    
+    #- use pandana shortest path precalc - (SLOW!)
+    parser.add_argument("--pandana", type=int, default=0)
     
     #- Feather Settings -#
     parser.add_argument("--eval-points", default=25)
