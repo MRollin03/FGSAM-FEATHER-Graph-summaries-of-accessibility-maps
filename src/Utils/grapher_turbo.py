@@ -12,23 +12,13 @@ import argparse
 
 # this is my BALLER turbo grapher, the intent is to graph and quickly show a statistical display of the node distribution within a given accesiblilty csv.
 
-
-DISTANCE = 2500  #this is a surprize tool that will help us later. SHOULKD BE RENAMED TO SCORE_LIMIT
-
-def plot(var): 
-    
-    if var == None :
-        CSV_FILE = "projects/Washington DC/featuresteis.csv"
-        OUTPUT = "./projects/Washington_DC_all/"
-        LABEL_COL = "Washington_DC"
-    else:
-        CSV_FILE = args.input + "/featuresteis.csv"
-        OUTPUT = args.input
-        LABEL_COL = args.name
-    
-    data = pd.read_csv(CSV_FILE)
-    ## We read the csv file here, NOTE: this is not the post feather csv, but the pandana output.
-    ### the initial version (this one) will only work with single feature .csv files. Later we will insert a function that allows multi col support.
+CSV_FILE = "projects/bordeaux_20000_all/featuresteis.csv"
+OUTPUT = "./projects/bordeaux_20000_all//"
+LABEL_COL = "Bordeaux 1500m"
+DISTANCE = 1500  #this is a surprize tool that will help us later. SHOULKD BE RENAMED TO SCORE_LIMIT
+data = pd.read_csv(CSV_FILE)
+## We read the csv file here, NOTE: this is not the post feather csv, but the pandana output.
+### the initial version (this one) will only work with single feature .csv files. Later we will insert a function that allows multi col support.
 
 
     # drop id col, we will not need it.
@@ -94,15 +84,16 @@ def plot(var):
         ax.bar_label(rects, padding=3)
         multiplier += 5
 
-    # Add some text for labels, title and custom x-axis tick labels, etc.
-    ax.set_ylabel('Percentage')
-    ax.set_title('Feature Distribution sorted for '+ LABEL_COL + ' by score and clustered by category')
-    ax.set_xticks((x + width)*11, label_list)
-    ax.set_xlabel('each category is sorted by order: High, Medium-High, Medium, Medium-Low, Low, each representing a 20% cutoff of score limit')
-    ax.legend(loc='upper left', ncols=6)
-    ax.set_ylim(0, 115)
+# Add some text for labels, title and custom x-axis tick labels, etc.
+ax.set_ylabel('Percentage')
+ax.set_title('Feature Distribution sorted for '+ LABEL_COL + ' by score and clustered by category')
+ax.set_xticks((x + width)*11, label_list)
+ax.set_xlabel('each category is sorted by order: High, Medium-High, Medium, Medium-Low, Low, each representing a 20% cutoff of score limit')
+ax.legend(loc='upper left', ncols=6)
+ax.set_ylim(0, 115)
 
-    plt.savefig(f"{OUTPUT}/graph.png")
+
+fig.savefig(OUTPUT + LABEL_COL + "_Bar")
 
 # =============================================================================
 # ## now we will use pandas "group by" to sort the values by distance, initially we will use 500m increments. as we expect max tistance to be 1500m or 2000m
