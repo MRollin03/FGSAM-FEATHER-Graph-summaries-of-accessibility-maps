@@ -27,8 +27,7 @@ n_features = len(feature_names)
 
 os.makedirs("projects/" + projectname + "/characteristic_functions", exist_ok=True)
 
-# Infer eval_points fra de faktiske CSV kolonner
-# (Vi fjerner 'id' hvis den findes i listen for at finde den første rigtige feature)
+# Infer eval_points from csv
 check_feat = [f for f in feature_names if f != 'id'][0]
 base = f"{check_feat}_real_0"
 eval_points = len([c for c in df.columns if c == base or c.startswith(base + ".")])
@@ -64,12 +63,12 @@ def get_cf_for_node(node_id, feature_idx, r):
     im_full = np.concatenate([-im_pos[::-1],  im_pos])
     return re_full, im_full
 
-# Find rækkerne med den laveste og højeste sum
+# find highest and lowest node sum value (This is only for Pandana Feature Vectors)
 row_sums = features_meta.select_dtypes(include=[np.number]).sum(axis=1)
 min_idx = row_sums.idxmin()
 max_idx = row_sums.idxmax()
 
-# Hent de faktiske ID'er fra metadata (antager at der er en 'id' kolonne)
+#  get correct id from metadata
 min_id = features_meta.loc[min_idx, 'id'] if 'id' in features_meta.columns else min_idx
 max_id = features_meta.loc[max_idx, 'id'] if 'id' in features_meta.columns else max_idx
 
@@ -77,8 +76,7 @@ node_ids = {
     "High score node": max_id,
     "Low score node":  min_id,
 }
-
-# --- Plot alle features ---
+# --- Plot all features ---
 for i, feat_name in enumerate(feature_names):
     if feat_name == "id": continue
     
@@ -96,7 +94,7 @@ for i, feat_name in enumerate(feature_names):
             else:
                 t_plot, re_plot, im_plot = theta_full, re_full, im_full
 
-            # Farve-logik
+            # colorsing order 1 red last order blue, rest light grey
             if r == 1:
                 color, lw, z = "red", 2, 5
             elif r == args.order:
@@ -107,7 +105,7 @@ for i, feat_name in enumerate(feature_names):
             axes[row_idx, 0].plot(t_plot, re_plot, color=color, linewidth=lw, label=label, zorder=z)
             axes[row_idx, 1].plot(t_plot, im_plot, color=color, linewidth=lw, label=label, zorder=z)
 
-        # Formatering
+        # Format
         for col in range(2):
             ax = axes[row_idx, col]
             ax.set_title(f"{node_label} (ID: {int(n_id)})", fontsize=11)
