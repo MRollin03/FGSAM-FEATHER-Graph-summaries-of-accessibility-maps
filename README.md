@@ -76,10 +76,10 @@ If you are having trouble with the module utils not getting reconized/found writ
 
 Parameter Overview:
 ```bash
---title	    Name of the generated project
---type	    Input type (PLACE, BBOX, MULTI_PLACE)
---place	    The location to download from OpenStreetMap
---output	Directory where generated files are stored
+--title	    #Name of the generated project
+--type	    #Input type (PLACE, BBOX, MULTI_PLACE)
+--place	    #The location to download from OpenStreetMap
+--output	#Directory where generated files are stored
 ```
 
 After the script completes, the processed graph data and related project files will be available inside:
@@ -91,20 +91,6 @@ projects/
 >Internet access is required to fetch OpenStreetMap data.
 >Large locations may take additional processing time depending on system performance. and Overpass API status
 
-## Literature
-
-- Moreno, C. (2021). _Definition of the 15-minute city: What is the 15-minute city?_
-  [https://www.researchgate.net/publication/362839186_Definition_of_the_15-minute_city_WHAT_IS_THE_15_MINUTE_CITY](https://www.researchgate.net/publication/362839186_Definition_of_the_15-minute_city_WHAT_IS_THE_15_MINUTE_CITY)
-
-- OpenStreetMap Contributors. _Planet OSM._
-  [https://planet.osm.org/](https://planet.osm.org/) (Accessed: 26-01-2026)
-
-- Rozenberczki, B., & Sarkar, R. (2020). _Characteristic Functions on Graphs: Birds of a Feather, from Statistical Descriptors to Parametric Models._
-  arXiv:2005.07959, [https://arxiv.org/pdf/2005.07959.pdf](https://arxiv.org/pdf/2005.07959.pdf) (Accessed: 26-01-2026)
-
-## License
-
-This project is intended for academic and research purposes. Licensing details will be added  once finalised.
 
 ## User Guide
 You can run our pipeline from the Automation.sh or AutomationWin.bat files, depending on wether you use Linux/Mac or Windows respectively.
@@ -121,26 +107,37 @@ If you use BBOX mode, then you must include the coordinates (north, east, west, 
 
 ### Options for OSM2FeatherConverter
 The OSM2FEATHERConverter handles the osm database queries and converts the data to a FEATHER friendly format. There is provide these command lines:
-```
---title   STR   Name of project
---type   STR   BBOX or PLACE 
---bbox   float  Numargs = 4  Bounding box coordinates   Only used when type is BBOX
---place   STR   Place name   Only used when type is PLACE
---solo   STR   the feature   Used if only one category is deciered   If NONE all categories will be accounted for.
---distance  int   Name of project   The distance to look for out 20 pois per cat, this is alos used as vmax for the heatmap grap
+```bash 
+--title   STR   #Name of project
+--type   STR   #BBOX or PLACE 
+--bbox   float  Numargs = 4  #Bounding box coordinates   Only used when type is BBOX
+--place   STR   Place name   #Only used when type is PLACE
+--solo   STR   featuretype #the feature Used if only one category is deciered   If NONE all categories will be accounted for.
+
+# OPTIONALS ARGUMENTS
+--pandana INT  # pandana based feature vector amount of points to look for per amenity
+--distance  INT   # The distance to look out for
 --output   STR   output direectory for the project folder
 ```
 
-### Options for NodeEmbedding
-```
---title   STR   Name of project
---input   STR   Path to input 
---output   STR   output direectory for the project folder
-```
 
 The options for FEATHER can be found here: https://github.com/benedekrozemberczki/FEATHER/blob/master/README.md
 
 ### Graphs
+## Literature
+
+- Moreno, C. (2021). _Definition of the 15-minute city: What is the 15-minute city?_
+  [https://www.researchgate.net/publication/362839186_Definition_of_the_15-minute_city_WHAT_IS_THE_15_MINUTE_CITY](https://www.researchgate.net/publication/362839186_Definition_of_the_15-minute_city_WHAT_IS_THE_15_MINUTE_CITY)
+
+- OpenStreetMap Contributors. _Planet OSM._
+  [https://planet.osm.org/](https://planet.osm.org/) (Accessed: 26-01-2026)
+
+- Rozenberczki, B., & Sarkar, R. (2020). _Characteristic Functions on Graphs: Birds of a Feather, from Statistical Descriptors to Parametric Models._
+  arXiv:2005.07959, [https://arxiv.org/pdf/2005.07959.pdf](https://arxiv.org/pdf/2005.07959.pdf) (Accessed: 26-01-2026)
+
+## License
+
+This project is intended for academic and research purposes. Licensing details will be added  once finalised.
 
 
 
