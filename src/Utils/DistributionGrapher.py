@@ -25,7 +25,7 @@ data = data.drop(columns =['id'])
 """Drop imaginary columns, keeping only the "real" ones"""
 imaginary = []
 for col in data.columns:
-    if "img" in col and col not in imaginary:
+    if "real" in col and col not in imaginary:
         imaginary.append(col)
 data = data.drop(columns=imaginary)
 
@@ -54,7 +54,7 @@ def Order_graph(feature):
 
         theta = np.linspace(0, dist, len(part_mean))
         std = df.std(axis=1)
-        axes[count].set_title(f"Mean distribution of {feature} - order {count} - {LABEL_COL}")
+        axes[count].set_title(f"Mean distribution of {feature} - order {count+1} - {LABEL_COL}")
         axes[count].plot(theta, part_mean, color=color_arr[count], label=f"mean for {feature} evaluation points ")
         axes[count].fill_between(theta, part_mean - std, part_mean + std, color=color_arr[count], alpha=0.4)
         axes[count].legend()
@@ -66,7 +66,7 @@ def Order_graph(feature):
         count +=1
     
     plt.tight_layout()
-    plt.savefig(OUTPUT + f"{feature}meanwave_ordered")
-      
+    plt.savefig(OUTPUT + f"{feature}_correct_meanwave_combined")
+
 for feature in features:
     Order_graph(feature=feature)
