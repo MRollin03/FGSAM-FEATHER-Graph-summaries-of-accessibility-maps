@@ -66,7 +66,7 @@ def Order_graph(feature):
         count +=1
     
     plt.tight_layout()
-    plt.savefig(OUTPUT + f"{feature}_correct_meanwave_combined")
+    plt.savefig(OUTPUT + f"{feature}_meanwave")
 
 for feature in features:
     Order_graph(feature=feature)
