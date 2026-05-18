@@ -59,11 +59,7 @@ cd FGSAM-FEATHER-Graph-summaries-of-accessibility-maps/src/Utils
 #3. Run the OSM to Feather Converter
 # The following command downloads and processes map data for Daegu, South Korea and stores the generated project files in the projects directory.
 
-python OSM2FeatherConverter.py \
-    --title "Daegu, South Korea" \
-    --type "PLACE" \
-    --place "Daegu, South Korea" \
-    --output "projects"
+
 ```
 
 If you are having trouble with the module utils not getting reconized/found write this command into the terminal
@@ -71,20 +67,6 @@ If you are having trouble with the module utils not getting reconized/found writ
   # make current terminal's python session reconize your internal modules
   export PYTHONPATH=$PYTHONPATH:$(pwd)/FEATHER/src
 ```
-
-
-
-Parameter Overview:
-```bash
---title	    Name of the generated project
---type	    Input type (PLACE, BBOX, MULTI_PLACE)
---place	    The location to download from OpenStreetMap
---output	Directory where generated files are stored
-```
-
-After the script completes, the processed graph data and related project files will be available inside:
-
-projects/
 
 >[!NOTE]
 >Ensure you have Python and all required dependencies installed before running the script.
@@ -94,27 +76,107 @@ projects/
 
 ## User Guide
 
-### OSM2FeatherConverter.py
-The OSM2FEATHERConverter handles the osm database queries and converts the data and run the full pipeline.
+### Automation.sh and or OSM2FeatherConverter.py
 
-**Input** > **Overpass API** > **Formatting** > **FEATHER computing** > **Plotting**
+`OSM2FeatherConverter.py` handles the full OSM processing pipeline, including querying OpenStreetMap data through the Overpass API, formatting the data, computing FEATHER metrics, and generating plots. But a eaiser way of using it and get a overview would be using the Automation.sh scripts in the Utils directory. src/Utils/Automation.sh
 
+ 
+
+Pipeline overview:
+
+```
+Input → Overpass API → Formatting → FEATHER Computing → Plotting
+```
+Run the whole pipine with the bash script
+You can edit diffrent parameters easily in the script
 ```bash
---title   STR   #Name of project
---type   STR   #BBOX or PLACE 
---bbox   float  Numargs = 4  #Bounding box coordinates   Only used when type is BBOX
---place   STR   "Place name"   # Only used when type is PLACE
---solo   STR   "the feature"   # Used if only one category is deciered   If NONE all categories will be accounted for.
---distance  int   #The distance to look for out POI/Amenities
---output   STR   # output direectory for the project folder
+bash Automation.sh
 ```
 
-### Options for NodeEmbedding
+### Arguments
+
 ```bash
---title   STR   #Name of project
---input   STR   #Path to input 
---output   STR   #output directory for the project folder
+--title STR
+    Name of the project.
+
+--type STR
+    Input mode:
+    PLACE        #Use a single place name
+    BBOX         #Use a bounding box
+    MULTI_PLACE  #Use multiple place names
+
+--bbox FLOAT FLOAT FLOAT FLOAT
+    #Bounding box coordinates:
+    #west south east north
+    #Only used when --type BBOX
+
+--place STR
+    #Name of a single location/place.
+    #Only used when --type PLACE
+
+--places STR [STR ...]
+    #Multiple locations/place names.
+    #Only used when --type MULTI_PLACE
+
+--solo STR
+    #Process only a single feature/category.
+    #If NONE, all categories are processed.
+
+--distance INT
+    #Maximum distance used when searching for POIs/Amenities.
+
+--output STR
+    #Output directory for the generated project folder.
+
+--pandana BOOL
+    #Enable or disable Pandana network calculations.
+
+--order INT
+    #FEATHER order value.
+
+--plotorders STR
+    #Comma-separated list of plot orders to generate.
+    #Example:
+    #"1,2,3,4"
+
+--thetamax FLOAT
+    #Maximum theta value used in FEATHER calculations.
+
+--evalpoints INT
+    #Number of evaluation points used during computation.
 ```
+
+### Example Usage
+
+#### PLACE mode
+
+```bash
+python OSM2FeatherConverter.py \
+    --type PLACE \
+    --place "Odense Municipality" \
+    --title "example_project"
+```
+
+#### BBOX mode
+
+```bash
+python OSM2FeatherConverter.py \
+    --type BBOX \
+    --bbox 12.24358 55.91420 12.34091 55.95679 \
+    --title "example_project"
+```
+
+#### MULTI_PLACE mode
+
+```bash
+python OSM2FeatherConverter.py \
+    --type MULTI_PLACE \
+    --places \
+        "Copenhagen Municipality, Denmark" \
+        "Frederiksberg Municipality, Denmark" \
+    --title "example_project"
+```
+
 
 The options for FEATHER can be found here: https://github.com/benedekrozemberczki/FEATHER/blob/master/README.md
 

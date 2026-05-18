@@ -130,7 +130,12 @@ def Draw(args, G, OSMID2Feather):
     # -----------------------------------------------------------------------
 
     categories  = ['moving', "outdoor_activities", "learning","supplies", "eating", "cultural_activities","physical_exercise","financial", "healthcare", "services",'all_pois']
-    orders      = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17.18,19,20] #Which orders you wish to be printed
+    if isinstance(args.plotorders, list) and len(args.plotorders) == 1 and ',' in str(args.plotorders[0]):
+        orders = [int(x) for x in args.plotorders[0].split(',')]
+    elif isinstance(args.plotorders, str):
+        orders = [int(x) for x in args.plotorders.split(',')]
+    else:
+        orders = [int(x) for x in args.plotorders]
 
     print("Pre-computing magnitudes (vectorised) ...")
     mag_cache = precompute_magnitudes(features, osm_node_ids, OSMID2Feather, categories, orders)
@@ -176,7 +181,7 @@ def Draw(args, G, OSMID2Feather):
 
             # Nodes
             ax.scatter(node_x, node_y, c=vals_array, cmap=cmap, norm=norm, 
-                    s=0.5, linewidths=0, zorder=2, alpha=0.55)
+                    s=0.3, linewidths=0, zorder=2, alpha=0.55)
 
             # Colorbar
             sm = cm.ScalarMappable(cmap=cmap, norm=norm)
@@ -193,7 +198,7 @@ def Draw(args, G, OSMID2Feather):
             os.makedirs(cat_dir, exist_ok=True) # Sikrer at mappen findes
             
             out_path = os.path.join(cat_dir, f'feather_order_{order}.png')
-            plt.savefig(out_path, facecolor='#111111', bbox_inches='tight', dpi=600)
+            plt.savefig(out_path, facecolor='#111111', bbox_inches='tight', dpi=500)
             plt.close(fig) 
             
             print(f"Saved: {out_path}")

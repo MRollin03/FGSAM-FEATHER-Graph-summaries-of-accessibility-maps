@@ -214,7 +214,7 @@ def Convert(args):
     # FEATURES
     # -----------------------------------------------------------------------
     
-    if args.pandana > 0 :
+    if args.pandana == True :
         print("Pandana Feature Vectorization (SLOW!)")
         nearest_pois = PandanaSP(network, n, featherIDtoOSMID, categories, args )
         PandanaPlotter.Draw(G, nearest_pois, n, args)
@@ -279,13 +279,14 @@ def Convert(args):
                   'order': int(args.order),
                   'theta_max':args.theta_max,
                   'model_type': 'FEATHER',
+                  'plotorders' : args.plotorders
                   }
     
     if not os.path.exists(args.output + '/'+ args.title + '/FeatherResult.csv'):
         main.main(SimpleNamespace(**featherargs))
     
     # ----------------------------------------------------------------------
-    # PLOT  the Feather Results
+    # PLOT the Feather Results
     # ----------------------------------------------------------------------
     FeatherMapPlotter.Draw(SimpleNamespace(featherargs), G, featherIDtoOSMID)
 
@@ -420,13 +421,16 @@ if __name__ == "__main__":
     parser.add_argument("--solo")
     
     #- use pandana shortest path precalc - (SLOW!)
-    parser.add_argument("--pandana", type=int, default=0)
+    parser.add_argument("--pandana", type=bool, default=False)
     
     #- Feather Settings -#
     parser.add_argument("--eval-points", default=25)
     parser.add_argument("--order", default=5)
     parser.add_argument("--theta-max", default=2.5)
-
+    
+    #- Plot -#
+    parser.add_argument('--plotorders', nargs='+', type=str, help='List of orders to plot')
+    
     args = parser.parse_args()
 
     if args.type == "BBOX"        and not args.bbox:   raise SystemExit("BBOX requires --bbox")
