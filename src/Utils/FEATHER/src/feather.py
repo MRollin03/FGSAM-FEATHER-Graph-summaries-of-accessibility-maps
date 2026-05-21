@@ -37,15 +37,24 @@ class FEATHER:
     
     def _create_D_inverse(self, graph):
         index = np.arange(graph.number_of_nodes())
-        # weight is the length of the road/edge
-        weights_sum = np.array([graph.degree(node, weight='weight') for node in range(graph.number_of_nodes())])
-        
-        # Handle division by zero
-        weights_sum[weights_sum == 0] = 1.0 
+
+        # Sum of transformed edge weights per node
+        weights_sum = np.array([
+            graph.degree(node, weight='weight')
+            for node in range(graph.number_of_nodes())
+        ], dtype=float)
+
+        # Avoid division by zero
+        weights_sum[weights_sum == 0] = 1.0
+
         values = 1.0 / weights_sum
-        
+
         shape = (graph.number_of_nodes(), graph.number_of_nodes())
-        D_inverse = sparse.coo_matrix((values, (index, index)), shape=shape)
+        D_inverse = sparse.coo_matrix(
+            (values, (index, index)),
+            shape=shape
+        )
+
         return D_inverse
 
     """
@@ -64,10 +73,30 @@ class FEATHER:
             return A_tilde
     """ 
     def _create_A_tilde(self, graph):
-        #  request the weight from the edges
-        A = nx.adjacency_matrix(graph, nodelist=range(graph.number_of_nodes()), weight='weight')
-        D_inverse = self._create_D_inverse(graph) 
+        # Create a copy so original graph is untouched
+        G = graph.copy()
+
+        # Convert distance/length into similarity strength
+        for u, v, d in G.edges(data=True):
+            length = d.get("weight", 1.0)
+
+            # Prevent division by zero
+            if length <= 0:
+                length = 1e-9
+
+            # Short edges -> large influence
+            d["weight"] = 1.0 / length
+
+        A = nx.adjacency_matrix(
+            G,
+            nodelist=range(G.number_of_nodes()),
+            weight='weight'
+        )
+
+        D_inverse = self._create_D_inverse(G)
+
         A_tilde = D_inverse.dot(A)
+
         return A_tilde
 
 

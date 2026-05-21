@@ -54,16 +54,26 @@ def load_graphs(graphs_path):
 def load_graph(graph_path):
     """
     Reading a weighted NetworkX graph.
+    CSV format: source, target, weight
     """
-    data = pd.read_csv(graph_path) # CSV has: source, target, weight
-    
-    # Create the graph directly from the DataFrame to preserve weights
-    graph = nx.from_pandas_edgelist(data, 
-                                    source=data.columns[0], 
-                                    target=data.columns[1], 
-                                    edge_attr=data.columns[2]) # The 3rd column is 'weight'
-    
+    data = pd.read_csv(graph_path)
+
+    source_col = data.columns[0]
+    target_col = data.columns[1]
+    weight_col = data.columns[2]
+
+    graph = nx.from_pandas_edgelist(
+        data,
+        source=source_col,
+        target=target_col,
+        edge_attr=weight_col
+    )
+
     graph.remove_edges_from(nx.selfloop_edges(graph))
+
+    for u, v, d in graph.edges(data=True):
+        d["weight"] = float(d.get(weight_col, d.get("weight", 1.0)))
+
     return graph
 
 def save_embedding(X, args):
