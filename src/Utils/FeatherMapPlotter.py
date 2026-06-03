@@ -62,7 +62,7 @@ def load_graph(args):
 
 import numpy as np
 
-def precompute_magnitudes(features, osm_node_ids, osmid_to_feather, categories, orders):
+def precompute_magnitudes(features, osm_node_ids, osmid_to_feather, categories, orders, plotorders):
     # Gets all of the id's from osm thats a part of the FeatherResult.csv
     feather_ids = [osmid_to_feather[osm_id] for osm_id in osm_node_ids]
     
@@ -71,13 +71,15 @@ def precompute_magnitudes(features, osm_node_ids, osmid_to_feather, categories, 
 
     for cat in categories:
         for order in orders:
+            if order not in plotorders : 
+                continue
             # Seperate the columns by cat order and real/img
             r_cols = [c for c in f_aligned.columns if f'{cat}_real_{order}' in c]
             i_cols = [c for c in f_aligned.columns if f'{cat}_img_{order}' in c]
 
             #Calculate hte real and img sum of the evalpoints 
-            r_sum = f_aligned[r_cols].abs().sum(axis=1).values if r_cols else 0
-            i_sum = f_aligned[i_cols].abs().sum(axis=1).values if i_cols else 0
+            r_sum = f_aligned[r_cols].sum(axis=1).values if r_cols else 0
+            i_sum = f_aligned[i_cols].sum(axis=1).values if i_cols else 0
             
             #Sum the real and img values together for the combined magnitude
             mag_cache[(cat, order)] = (r_sum + i_sum)
@@ -138,7 +140,7 @@ def Draw(args, G, OSMID2Feather):
         orders = [int(x) for x in args.plotorders]
 
     print("Pre-computing magnitudes (vectorised) ...")
-    mag_cache = precompute_magnitudes(features, osm_node_ids, OSMID2Feather, categories, orders)
+    mag_cache = precompute_magnitudes(features, osm_node_ids, OSMID2Feather, categories, orders, args.plotorders)
     print("Done.")
 
     # -----------------------------------------------------------------------
